@@ -7,7 +7,6 @@ const adapter = new PrismaBetterSqlite3({ url: dbPath });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  // Seed templates
   const templates = [
     {
       name: 'Elegant Rose',
@@ -56,6 +55,54 @@ async function main() {
       price: 50000,
       thumbnail: '/templates/rustic-garden.jpg',
     },
+    {
+      name: 'Christian Grace',
+      slug: 'christian-grace',
+      category: 'CHRISTIAN',
+      description: 'Template Kristiani dengan ayat Alkitab dan nuansa biru lembut',
+      componentName: 'christian',
+      isPremium: false,
+      thumbnail: '/templates/christian-grace.jpg',
+    },
+    {
+      name: 'Javanese Heritage',
+      slug: 'javanese-heritage',
+      category: 'TRADITIONAL',
+      description: 'Template tradisional Jawa dengan motif batik dan warna coklat hangat',
+      componentName: 'javanese',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/javanese-heritage.jpg',
+    },
+    {
+      name: 'Modern Dark',
+      slug: 'modern-dark',
+      category: 'MODERN',
+      description: 'Template modern gelap dengan aksen emas mewah',
+      componentName: 'modern-dark',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/modern-dark.jpg',
+    },
+    {
+      name: 'Chinese Double Happiness',
+      slug: 'chinese-double-happiness',
+      category: 'CHINESE',
+      description: 'Template pernikahan Tionghoa dengan simbol kebahagiaan ganda',
+      componentName: 'chinese',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/chinese-double-happiness.jpg',
+    },
+    {
+      name: 'Floral Romance',
+      slug: 'floral-romance',
+      category: 'ELEGANT',
+      description: 'Template romantis dengan ornamen bunga merah muda yang cantik',
+      componentName: 'floral',
+      isPremium: false,
+      thumbnail: '/templates/floral-romance.jpg',
+    },
   ];
 
   for (const template of templates) {
@@ -66,7 +113,7 @@ async function main() {
     });
   }
 
-  console.log('Seed completed: 5 templates created');
+  console.log('Seed completed: 10 templates created');
 }
 
 main()

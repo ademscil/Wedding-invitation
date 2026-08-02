@@ -5,6 +5,11 @@ import { ModernTemplate } from './modern';
 import { MinimalistTemplate } from './minimalist';
 import { IslamicTemplate } from './islamic';
 import { RusticTemplate } from './rustic';
+import { ChristianTemplate } from './christian';
+import { JavaneseTemplate } from './javanese';
+import { ModernDarkTemplate } from './modern-dark';
+import { ChineseTemplate } from './chinese';
+import { FloralTemplate } from './floral';
 
 export const templateRegistry: Record<string, ComponentType<TemplateProps>> = {
   elegant: ElegantTemplate,
@@ -12,6 +17,11 @@ export const templateRegistry: Record<string, ComponentType<TemplateProps>> = {
   minimalist: MinimalistTemplate,
   islamic: IslamicTemplate,
   rustic: RusticTemplate,
+  christian: ChristianTemplate,
+  javanese: JavaneseTemplate,
+  'modern-dark': ModernDarkTemplate,
+  chinese: ChineseTemplate,
+  floral: FloralTemplate,
 };
 
 export function getTemplate(
