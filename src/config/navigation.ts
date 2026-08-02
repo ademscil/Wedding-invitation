@@ -4,6 +4,8 @@ import {
   Users,
   BarChart3,
   Settings,
+  QrCode,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -24,6 +26,11 @@ export const dashboardNav: NavItem[] = [
     title: 'Undangan Saya',
     href: '/dashboard/invitations',
     icon: Mail,
+  },
+  {
+    title: 'Upgrade',
+    href: '/dashboard/upgrade',
+    icon: CreditCard,
   },
   {
     title: 'Pengaturan',
@@ -47,5 +54,10 @@ export const invitationNav = (id: string): NavItem[] => [
     title: 'Statistik',
     href: `/dashboard/invitations/${id}/analytics`,
     icon: BarChart3,
+  },
+  {
+    title: 'Check-in',
+    href: `/dashboard/invitations/${id}/checkin`,
+    icon: QrCode,
   },
 ];

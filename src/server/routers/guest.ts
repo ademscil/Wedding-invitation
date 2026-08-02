@@ -201,13 +201,27 @@ export const guestRouter = router({
           }),
         ]);
 
-      const totalAttendingGuests = await ctx.prisma.guest.aggregate({
-        where: {
-          invitationId: input.invitationId,
-          rsvpStatus: 'ATTENDING',
-        },
-        _sum: { rsvpGuestCount: true },
-      });
+      const [totalAttendingGuests, opened, checkedIn] = await Promise.all([
+        ctx.prisma.guest.aggregate({
+          where: {
+            invitationId: input.invitationId,
+            rsvpStatus: 'ATTENDING',
+          },
+          _sum: { rsvpGuestCount: true },
+        }),
+        ctx.prisma.guest.count({
+          where: {
+            invitationId: input.invitationId,
+            linkOpenedAt: { not: null },
+          },
+        }),
+        ctx.prisma.guest.count({
+          where: {
+            invitationId: input.invitationId,
+            checkedIn: true,
+          },
+        }),
+      ]);
 
       return {
         total,
@@ -215,7 +229,9 @@ export const guestRouter = router({
         notAttending,
         maybe,
         pending,
-        totalAttendingGuests: totalAttendingGuests._sum.rsvpGuestCount || 0,
+        totalGuestCount: totalAttendingGuests._sum.rsvpGuestCount || 0,
+        opened,
+        checkedIn,
       };
     }),
 });

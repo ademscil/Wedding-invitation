@@ -4,6 +4,9 @@ import { guestRouter } from './routers/guest';
 import { wishRouter } from './routers/wish';
 import { templateRouter } from './routers/template';
 import { analyticsRouter } from './routers/analytics';
+import { adminRouter } from './routers/admin';
+import { paymentRouter } from './routers/payment';
+import { checkinRouter } from './routers/checkin';
 
 export const appRouter = router({
   invitation: invitationRouter,
@@ -11,6 +14,9 @@ export const appRouter = router({
   wish: wishRouter,
   template: templateRouter,
   analytics: analyticsRouter,
+  admin: adminRouter,
+  payment: paymentRouter,
+  checkin: checkinRouter,
 });
 
 export type AppRouter = typeof appRouter;
