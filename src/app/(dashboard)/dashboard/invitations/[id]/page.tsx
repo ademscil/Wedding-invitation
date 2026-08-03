@@ -420,7 +420,7 @@ export default function InvitationDetailPage() {
         </CollapsibleSection>
 
         {/* Template */}
-        <CollapsibleSection title="Template">
+        <CollapsibleSection title="Template" defaultOpen>
           {templatesLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -440,9 +440,18 @@ export default function InvitationDetailPage() {
                   onClick={() => setSelectedTemplateId(template.id)}
                 >
                   <div className="relative h-28 bg-gradient-to-br from-primary/10 to-primary/5">
-                    <div className="flex h-full items-center justify-center">
-                      <Heart className="h-7 w-7 text-primary/30" />
-                    </div>
+                    {template.thumbnail ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={template.thumbnail}
+                        alt={template.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <Heart className="h-7 w-7 text-primary/30" />
+                      </div>
+                    )}
                     {selectedTemplateId === template.id && (
                       <div className="absolute right-2 top-2 rounded-full bg-primary p-1">
                         <Check className="h-4 w-4 text-white" />

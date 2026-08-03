@@ -88,9 +88,18 @@ export default function NewInvitationPage() {
                   }
                 >
                   <div className="relative h-32 bg-gradient-to-br from-primary/10 to-primary/5">
-                    <div className="flex h-full items-center justify-center">
-                      <Heart className="h-8 w-8 text-primary/30" />
-                    </div>
+                    {template.thumbnail ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={template.thumbnail}
+                        alt={template.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <Heart className="h-8 w-8 text-primary/30" />
+                      </div>
+                    )}
                     {selectedTemplateId === template.id && (
                       <div className="absolute right-2 top-2 rounded-full bg-primary p-1">
                         <Check className="h-4 w-4 text-white" />
