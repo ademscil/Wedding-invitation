@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Check, X, Users, QrCode } from 'lucide-react';
+import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,11 @@ export default function CheckinPage() {
     onSuccess: (data) => {
       setResult(data);
       refetchStats();
+      setTimeout(() => setResult(null), 4000);
+    },
+    onError: (error) => {
+      setResult({ success: false, message: error.message || 'Kode tidak valid', guest: null });
+      toast.error(error.message || 'Gagal memverifikasi tamu');
       setTimeout(() => setResult(null), 4000);
     },
   });

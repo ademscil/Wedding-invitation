@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { RSVP_STATUS, GUEST_GROUPS } from '@/lib/constants';
 import {
@@ -51,6 +52,11 @@ export default function GuestsPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<Array<{ name: string; phone?: string; email?: string; groupName?: string }>>([]);
   const [importLoading, setImportLoading] = useState(false);
+  const [deleteGuestId, setDeleteGuestId] = useState<string | null>(null);
+  const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
+  const [broadcastQueue, setBroadcastQueue] = useState<Array<{ id: string; name: string; phone: string; personalLink: string }> | null>(null);
+  const [broadcastIndex, setBroadcastIndex] = useState(0);
+  const [broadcastSent, setBroadcastSent] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: invitation } = trpc.invitation.getById.useQuery(
@@ -100,6 +106,7 @@ export default function GuestsPage() {
       toast.success('Tamu berhasil dihapus');
       utils.guest.list.invalidate({ invitationId: id });
       utils.guest.getStats.invalidate({ invitationId: id });
+      setDeleteGuestId(null);
     },
     onError: () => toast.error('Gagal menghapus tamu'),
   });
@@ -119,9 +126,51 @@ export default function GuestsPage() {
   };
 
   const handleDeleteGuest = (guestId: string) => {
-    if (window.confirm('Yakin ingin menghapus tamu ini?')) {
-      deleteMutation.mutate({ id: guestId });
+    setDeleteGuestId(guestId);
+  };
+
+  const toggleSelectGuest = (guestId: string) => {
+    setSelectedGuestIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(guestId)) next.delete(guestId);
+      else next.add(guestId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (guestsWithPhone: Array<{ id: string }>) => {
+    setSelectedGuestIds((prev) =>
+      prev.size === guestsWithPhone.length ? new Set() : new Set(guestsWithPhone.map((g) => g.id))
+    );
+  };
+
+  const handleStartBroadcast = () => {
+    if (!guests) return;
+    const queue = guests
+      .filter((g) => selectedGuestIds.has(g.id) && g.phone)
+      .map((g) => ({ id: g.id, name: g.name, phone: g.phone!, personalLink: g.personalLink }));
+    if (queue.length === 0) {
+      toast.error('Pilih minimal 1 tamu dengan nomor HP');
+      return;
     }
+    setBroadcastQueue(queue);
+    setBroadcastIndex(0);
+    setBroadcastSent(new Set());
+  };
+
+  const handleSendBroadcastItem = () => {
+    if (!broadcastQueue) return;
+    const guest = broadcastQueue[broadcastIndex];
+    handleWhatsApp(guest.name, guest.phone, guest.personalLink);
+    setBroadcastSent((prev) => new Set(prev).add(guest.id));
+    if (broadcastIndex < broadcastQueue.length - 1) {
+      setBroadcastIndex((i) => i + 1);
+    }
+  };
+
+  const handleCloseBroadcast = () => {
+    setBroadcastQueue(null);
+    setSelectedGuestIds(new Set());
   };
 
   const handleFileSelect = async (file: File) => {
@@ -191,7 +240,7 @@ export default function GuestsPage() {
   const handleWhatsApp = (guestName: string, phone: string, personalLink: string) => {
     if (!phone) return toast.error('Nomor HP tamu tidak tersedia');
     const baseUrl = window.location.origin;
-    const invitationUrl = `${baseUrl}/${invitation?.slug}/to/${personalLink}`;
+    const invitationUrl = `${baseUrl}/${invitation?.slug}?to=${personalLink}`;
     const link = generateWhatsAppLink(
       guestName,
       phone,
@@ -214,7 +263,7 @@ export default function GuestsPage() {
 
   const handleCopyLink = (personalLink: string) => {
     const baseUrl = window.location.origin;
-    const url = `${baseUrl}/${invitation?.slug}/to/${personalLink}`;
+    const url = `${baseUrl}/${invitation?.slug}?to=${personalLink}`;
     navigator.clipboard.writeText(url).then(() => toast.success('Link disalin'));
   };
 
@@ -251,6 +300,12 @@ export default function GuestsPage() {
             <Download className="mr-1.5 h-4 w-4" />
             Excel
           </Button>
+          {selectedGuestIds.size > 0 && (
+            <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={handleStartBroadcast}>
+              <MessageCircle className="mr-1.5 h-4 w-4" />
+              Broadcast WhatsApp ({selectedGuestIds.size})
+            </Button>
+          )}
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Tamu
@@ -332,6 +387,15 @@ export default function GuestsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={selectedGuestIds.size > 0 && selectedGuestIds.size === guests.filter((g) => g.phone).length}
+                      onChange={() => toggleSelectAll(guests.filter((g) => g.phone))}
+                      aria-label="Pilih semua tamu dengan nomor HP"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Nama</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">No. HP</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Grup</th>
@@ -345,6 +409,16 @@ export default function GuestsPage() {
                   const rsvpConfig = RSVP_STATUS[guest.rsvpStatus as keyof typeof RSVP_STATUS] || RSVP_STATUS.PENDING;
                   return (
                     <tr key={guest.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-input"
+                          checked={selectedGuestIds.has(guest.id)}
+                          disabled={!guest.phone}
+                          onChange={() => toggleSelectGuest(guest.id)}
+                          aria-label={`Pilih ${guest.name}`}
+                        />
+                      </td>
                       <td className="px-4 py-3 text-sm font-medium">{guest.name}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{guest.phone || '-'}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{guest.groupName || '-'}</td>
@@ -577,6 +651,75 @@ export default function GuestsPage() {
               <Download className="mr-2 h-4 w-4" />
               Unduh QR Code
             </Button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteGuestId}
+        onOpenChange={(open) => !open && setDeleteGuestId(null)}
+        title="Hapus Tamu?"
+        description="Data tamu ini beserta status RSVP dan link personalnya akan dihapus permanen."
+        confirmLabel="Ya, Hapus"
+        isLoading={deleteMutation.isLoading}
+        onConfirm={() => deleteGuestId && deleteMutation.mutate({ id: deleteGuestId })}
+      />
+
+      {/* Broadcast WhatsApp Queue Modal */}
+      {broadcastQueue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Broadcast WhatsApp</h2>
+              <Button variant="ghost" size="icon" onClick={handleCloseBroadcast}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <p className="mb-1 text-sm text-muted-foreground">
+              Progres: {broadcastSent.size} dari {broadcastQueue.length} terkirim
+            </p>
+            <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-green-600 transition-all"
+                style={{ width: `${(broadcastSent.size / broadcastQueue.length) * 100}%` }}
+              />
+            </div>
+
+            <div className="mb-4 max-h-48 space-y-1 overflow-y-auto rounded-lg border p-2">
+              {broadcastQueue.map((guest, i) => (
+                <div
+                  key={guest.id}
+                  className={cn(
+                    'flex items-center justify-between rounded px-2 py-1.5 text-sm',
+                    i === broadcastIndex && 'bg-primary/10 font-medium'
+                  )}
+                >
+                  <span>{guest.name}</span>
+                  {broadcastSent.has(guest.id) ? (
+                    <span className="text-xs text-green-600">Terkirim</span>
+                  ) : i === broadcastIndex ? (
+                    <span className="text-xs text-primary">Berikutnya</span>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            <p className="mb-3 text-xs text-muted-foreground">
+              Karena WhatsApp tidak mengizinkan pengiriman otomatis tanpa aksi pengguna, setiap tamu akan
+              membuka jendela WhatsApp berisi pesan siap kirim &mdash; Anda tinggal menekan tombol Kirim di WhatsApp.
+            </p>
+
+            {broadcastSent.size < broadcastQueue.length ? (
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={handleSendBroadcastItem}>
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Buka WhatsApp untuk {broadcastQueue[broadcastIndex].name}
+              </Button>
+            ) : (
+              <Button className="w-full" onClick={handleCloseBroadcast}>
+                Selesai
+              </Button>
+            )}
           </div>
         </div>
       )}

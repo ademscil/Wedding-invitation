@@ -23,7 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { UploadButton } from '@/lib/uploadthing';
+import { ThemedUploadButton } from '@/components/ui/upload-button';
 import { cn } from '@/lib/utils';
 
 interface EventItem {
@@ -575,7 +575,8 @@ export default function InvitationDetailPage() {
                 <Plus className="mr-2 h-4 w-4" />
                 Tambah URL Manual
               </Button>
-              <UploadButton
+              <ThemedUploadButton
+                label="Upload Foto"
                 endpoint="invitationImage"
                 onClientUploadComplete={(res) => {
                   const urls = res.map((file) => file.url);
@@ -600,7 +601,8 @@ export default function InvitationDetailPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={bridePhoto} alt="Foto mempelai wanita" className="h-32 w-32 rounded-lg object-cover" />
                 )}
-                <UploadButton
+                <ThemedUploadButton
+                  label="Upload Foto"
                   endpoint="invitationImage"
                   onClientUploadComplete={(res) => {
                     setBridePhoto(res[0]?.url ?? '');
@@ -617,7 +619,8 @@ export default function InvitationDetailPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={groomPhoto} alt="Foto mempelai pria" className="h-32 w-32 rounded-lg object-cover" />
                 )}
-                <UploadButton
+                <ThemedUploadButton
+                  label="Upload Foto"
                   endpoint="invitationImage"
                   onClientUploadComplete={(res) => {
                     setGroomPhoto(res[0]?.url ?? '');
@@ -639,7 +642,8 @@ export default function InvitationDetailPage() {
                   onChange={(e) => setMusicUrl(e.target.value)}
                   className="flex-1"
                 />
-                <UploadButton
+                <ThemedUploadButton
+                  label="Upload Musik"
                   endpoint="invitationMusic"
                   onClientUploadComplete={(res) => {
                     setMusicUrl(res[0]?.url ?? '');
