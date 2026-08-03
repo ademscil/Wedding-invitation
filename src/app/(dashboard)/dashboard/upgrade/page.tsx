@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SUBSCRIPTION_TIERS as TIERS } from '@/lib/constants';
 import { toast } from 'sonner';
+import { FloatingGem } from '@/components/3d/floating-gem';
 
 const PLAN_FEATURES: Record<string, string[]> = {
   FREE: [
@@ -106,6 +107,7 @@ export default function UpgradePage() {
   return (
     <div className="space-y-8 p-6">
       <div className="text-center">
+        <FloatingGem className="mx-auto mb-2 h-20 w-20" />
         <h1 className="text-3xl font-bold">Upgrade Paket</h1>
         <p className="mt-2 text-muted-foreground">
           Paket Anda saat ini: <span className="font-semibold text-primary">{TIERS[currentTier as keyof typeof TIERS].name}</span>
