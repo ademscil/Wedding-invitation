@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Save, Loader2, Crown } from 'lucide-react';
+import { Save, Loader2, Crown, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,45 @@ export default function ProfilePage() {
   const [name, setName] = useState(session?.user?.name || '');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const { data: subscription } = trpc.payment.getSubscription.useQuery();
+  const { data: authMethods } = trpc.user.getAuthMethods.useQuery();
   const tier = (subscription?.tier as SubscriptionTier) || 'FREE';
   const tierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.FREE;
+
+  const setPasswordMutation = trpc.user.setPassword.useMutation({
+    onSuccess: () => {
+      toast.success(authMethods?.hasPassword ? 'Password berhasil diubah' : 'Password berhasil dibuat');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      utils.user.getAuthMethods.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Gagal menyimpan password');
+    },
+  });
+
+  const utils = trpc.useUtils();
+
+  const handleSetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error('Password minimal 6 karakter');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Konfirmasi password tidak cocok');
+      return;
+    }
+    setPasswordMutation.mutate({
+      currentPassword: authMethods?.hasPassword ? currentPassword : undefined,
+      newPassword,
+    });
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -87,6 +122,58 @@ export default function ProfilePage() {
               Simpan
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <KeyRound className="h-5 w-5 text-primary" />
+            {authMethods?.hasPassword ? 'Ubah Password' : 'Buat Password'}
+          </CardTitle>
+          <CardDescription>
+            {authMethods?.hasPassword
+              ? 'Ganti password akun Anda'
+              : 'Akun Anda masuk lewat Google. Buat password agar juga bisa login manual dengan email & password.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSetPassword} className="space-y-4">
+            {authMethods?.hasPassword && (
+              <Input
+                label="Password Saat Ini"
+                type="password"
+                placeholder="Masukkan password saat ini"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            )}
+            <Input
+              label="Password Baru"
+              type="password"
+              placeholder="Minimal 6 karakter"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <Input
+              label="Konfirmasi Password Baru"
+              type="password"
+              placeholder="Ulangi password baru"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+            <div className="flex justify-end pt-2">
+              <Button type="submit" disabled={setPasswordMutation.isLoading}>
+                {setPasswordMutation.isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <KeyRound className="mr-2 h-4 w-4" />
+                )}
+                {authMethods?.hasPassword ? 'Ubah Password' : 'Buat Password'}
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
 
