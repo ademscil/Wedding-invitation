@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, claude/*]
+    branches: [main, staging, development, 'claude/*']
   pull_request:
-    branches: [main]
+    branches: [main, staging, development]
 
 jobs:
   lint-typecheck:
@@ -19,7 +19,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
         env:
-          DATABASE_URL: file:./test.db
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
       - run: npm run lint
       - run: npx tsc --noEmit
 
@@ -35,7 +35,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
         env:
-          DATABASE_URL: file:./test.db
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
       - run: npm run test
 
   build:
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint-typecheck]
     env:
-      DATABASE_URL: file:./test.db
+      DATABASE_URL: postgresql://user:pass@localhost:5432/test
       NEXTAUTH_SECRET: ci-secret-placeholder
       NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000

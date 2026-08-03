@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { UploadButton } from '@/lib/uploadthing';
 import { cn } from '@/lib/utils';
 
 interface EventItem {
@@ -96,6 +97,9 @@ export default function InvitationDetailPage() {
   const [quote, setQuote] = useState('');
   const [dressCode, setDressCode] = useState('');
   const [streamingUrl, setStreamingUrl] = useState('');
+  const [bridePhoto, setBridePhoto] = useState('');
+  const [groomPhoto, setGroomPhoto] = useState('');
+  const [musicUrl, setMusicUrl] = useState('');
   const [events, setEvents] = useState<EventItem[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
@@ -116,7 +120,15 @@ export default function InvitationDetailPage() {
       setQuote(invitation.quote || '');
       setDressCode(invitation.dressCode || '');
       setStreamingUrl(invitation.streamingUrl || '');
+      setBridePhoto(invitation.bridePhoto || '');
+      setGroomPhoto(invitation.groomPhoto || '');
 
+      try {
+        const settings = JSON.parse(invitation.settings || '{}');
+        setMusicUrl(settings.musicUrl || '');
+      } catch {
+        setMusicUrl('');
+      }
       try {
         setEvents(JSON.parse(invitation.events || '[]'));
       } catch {
@@ -171,6 +183,12 @@ export default function InvitationDetailPage() {
       quote: quote || undefined,
       dressCode: dressCode || undefined,
       streamingUrl: streamingUrl || undefined,
+      bridePhoto: bridePhoto || undefined,
+      groomPhoto: groomPhoto || undefined,
+      settings: JSON.stringify({
+        ...(invitation ? JSON.parse(invitation.settings || '{}') : {}),
+        musicUrl: musicUrl || undefined,
+      }),
       events: JSON.stringify(events),
       bankAccounts: JSON.stringify(bankAccounts),
       galleryImages: JSON.stringify(galleryImages),
@@ -552,10 +570,92 @@ export default function InvitationDetailPage() {
                 </Button>
               </div>
             ))}
-            <Button type="button" variant="outline" onClick={addGalleryImage}>
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Foto
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" variant="outline" onClick={addGalleryImage}>
+                <Plus className="mr-2 h-4 w-4" />
+                Tambah URL Manual
+              </Button>
+              <UploadButton
+                endpoint="invitationImage"
+                onClientUploadComplete={(res) => {
+                  const urls = res.map((file) => file.url);
+                  setGalleryImages([...galleryImages, ...urls]);
+                  toast.success('Foto berhasil diunggah');
+                }}
+                onUploadError={(error) => {
+                  toast.error(`Upload gagal: ${error.message}`);
+                }}
+              />
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Photo & Music */}
+        <CollapsibleSection title="Foto & Musik">
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Foto Mempelai Wanita</label>
+                {bridePhoto && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={bridePhoto} alt="Foto mempelai wanita" className="h-32 w-32 rounded-lg object-cover" />
+                )}
+                <UploadButton
+                  endpoint="invitationImage"
+                  onClientUploadComplete={(res) => {
+                    setBridePhoto(res[0]?.url ?? '');
+                    toast.success('Foto berhasil diunggah');
+                  }}
+                  onUploadError={(error) => {
+                    toast.error(`Upload gagal: ${error.message}`);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Foto Mempelai Pria</label>
+                {groomPhoto && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={groomPhoto} alt="Foto mempelai pria" className="h-32 w-32 rounded-lg object-cover" />
+                )}
+                <UploadButton
+                  endpoint="invitationImage"
+                  onClientUploadComplete={(res) => {
+                    setGroomPhoto(res[0]?.url ?? '');
+                    toast.success('Foto berhasil diunggah');
+                  }}
+                  onUploadError={(error) => {
+                    toast.error(`Upload gagal: ${error.message}`);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Musik Latar</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="URL musik (mp3)"
+                  value={musicUrl}
+                  onChange={(e) => setMusicUrl(e.target.value)}
+                  className="flex-1"
+                />
+                <UploadButton
+                  endpoint="invitationMusic"
+                  onClientUploadComplete={(res) => {
+                    setMusicUrl(res[0]?.url ?? '');
+                    toast.success('Musik berhasil diunggah');
+                  }}
+                  onUploadError={(error) => {
+                    toast.error(`Upload gagal: ${error.message}`);
+                  }}
+                />
+              </div>
+              {musicUrl && (
+                <audio controls src={musicUrl} className="mt-2 w-full">
+                  <track kind="captions" />
+                </audio>
+              )}
+            </div>
           </div>
         </CollapsibleSection>
 

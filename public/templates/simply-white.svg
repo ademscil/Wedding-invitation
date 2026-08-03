@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#ffffff"/>
+  <rect x="40" y="40" width="320" height="480" fill="none" stroke="#ddd" stroke-width="1"/>
+  <text x="200" y="270" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#333">Minimalist</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#888">Simply White</text>
+</svg>

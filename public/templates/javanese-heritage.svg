@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#fbf3e3"/>
+  <rect x="0" y="0" width="400" height="560" fill="none" stroke="#a3742a" stroke-width="10"/>
+  <text x="200" y="260" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#7a5620">Javanese</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#a3742a">Heritage Template</text>
+</svg>

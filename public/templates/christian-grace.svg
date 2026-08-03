@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#f5f7fa"/>
+  <line x1="200" y1="60" x2="200" y2="140" stroke="#5a6b8c" stroke-width="4"/>
+  <line x1="165" y1="90" x2="235" y2="90" stroke="#5a6b8c" stroke-width="4"/>
+  <text x="200" y="270" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#3d4a63">Christian</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#5a6b8c">Grace Template</text>
+</svg>

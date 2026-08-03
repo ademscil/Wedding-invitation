@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Check } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
@@ -52,11 +53,13 @@ const PLAN_FEATURES: Record<string, string[]> = {
 
 export default function UpgradePage() {
   const [loading, setLoading] = useState<string | null>(null);
+  const { update: updateSession } = useSession();
   const { data: subscription } = trpc.payment.getSubscription.useQuery();
   const createCheckout = trpc.payment.createCheckout.useMutation();
   const confirmPayment = trpc.payment.confirmPayment.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Langganan berhasil diaktifkan!');
+      await updateSession();
       window.location.reload();
     },
   });
@@ -66,15 +69,18 @@ export default function UpgradePage() {
     try {
       const result = await createCheckout.mutateAsync({ plan });
 
-      // If Midtrans client key is configured, open Snap payment
-      if (result.snapClientKey && typeof window !== 'undefined') {
-        // Dynamically load Midtrans Snap script
+      // If a Snap token was issued, open Midtrans Snap payment popup
+      if (result.snapToken && typeof window !== 'undefined') {
+        const snapJsUrl = result.isProduction
+          ? 'https://app.midtrans.com/snap/snap.js'
+          : 'https://app.sandbox.midtrans.com/snap/snap.js';
+
         const script = document.createElement('script');
-        script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
-        script.setAttribute('data-client-key', result.snapClientKey);
+        script.src = snapJsUrl;
+        script.setAttribute('data-client-key', process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ?? '');
         script.onload = () => {
           // @ts-expect-error — Midtrans Snap injected globally
-          window.snap?.pay(result.orderId, {
+          window.snap?.pay(result.snapToken, {
             onSuccess: async () => {
               await confirmPayment.mutateAsync({ paymentId: result.paymentId, plan });
             },
@@ -85,7 +91,7 @@ export default function UpgradePage() {
         };
         document.head.appendChild(script);
       } else {
-        // Demo mode: directly confirm
+        // Demo mode (no Midtrans key configured): directly confirm
         await confirmPayment.mutateAsync({ paymentId: result.paymentId, plan });
       }
     } catch {

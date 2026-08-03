@@ -33,6 +33,8 @@ export const paymentRouter = router({
       const tierInfo = SUBSCRIPTION_TIERS[input.plan];
       const amount = tierInfo.price;
 
+      const orderId = `INV-${Date.now()}`;
+
       const payment = await ctx.prisma.payment.create({
         data: {
           userId: ctx.session!.user.id,
@@ -41,19 +43,57 @@ export const paymentRouter = router({
           type: 'SUBSCRIPTION',
           status: 'PENDING',
           gateway: 'midtrans',
-          gatewayReferenceId: `INV-${Date.now()}`,
+          gatewayReferenceId: orderId,
         },
       });
 
-      // Return payment details — frontend can use Midtrans Snap with NEXT_PUBLIC_MIDTRANS_CLIENT_KEY
+      const serverKey = process.env.MIDTRANS_SERVER_KEY ?? '';
+      const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+      const snapBaseUrl = isProduction
+        ? 'https://app.midtrans.com/snap/v1/transactions'
+        : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+
+      let snapToken: string | null = null;
+
+      if (serverKey) {
+        try {
+          const user = await ctx.prisma.user.findUnique({
+            where: { id: ctx.session!.user.id },
+            select: { name: true, email: true },
+          });
+
+          const response = await fetch(snapBaseUrl, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              Authorization: `Basic ${Buffer.from(`${serverKey}:`).toString('base64')}`,
+            },
+            body: JSON.stringify({
+              transaction_details: { order_id: orderId, gross_amount: amount },
+              customer_details: { first_name: user?.name ?? 'Pelanggan', email: user?.email },
+              item_details: [{ id: input.plan, price: amount, quantity: 1, name: `Paket ${tierInfo.name}` }],
+            }),
+          });
+
+          if (response.ok) {
+            const data = (await response.json()) as { token: string };
+            snapToken = data.token;
+          } else {
+            console.error('[midtrans] Failed to create Snap transaction:', await response.text());
+          }
+        } catch (error) {
+          console.error('[midtrans] Snap API error:', error);
+        }
+      }
+
       return {
         paymentId: payment.id,
-        orderId: payment.gatewayReferenceId,
+        orderId,
         amount,
         plan: input.plan,
-        // Snap token would be fetched from Midtrans server API using MIDTRANS_SERVER_KEY
-        // For now return the metadata needed to call Snap
-        snapClientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ?? '',
+        snapToken,
+        isProduction,
       };
     }),
 

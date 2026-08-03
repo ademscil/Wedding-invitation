@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#f6f1e7"/>
+  <rect x="0" y="0" width="400" height="560" fill="none" stroke="#8a6d4b" stroke-width="6"/>
+  <text x="200" y="260" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#6b5330">Rustic</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#8a6d4b">Garden Template</text>
+</svg>
