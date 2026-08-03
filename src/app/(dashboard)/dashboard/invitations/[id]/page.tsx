@@ -14,6 +14,8 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
+  Check,
+  Heart,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
@@ -86,11 +88,16 @@ export default function InvitationDetailPage() {
     { id },
     { enabled: !!id }
   );
+  const { data: templates, isLoading: templatesLoading } =
+    trpc.template.list.useQuery();
   const utils = trpc.useUtils();
 
   // Form state
   const [brideName, setBrideName] = useState('');
   const [groomName, setGroomName] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+    null
+  );
   const [brideParents, setBrideParents] = useState('');
   const [groomParents, setGroomParents] = useState('');
   const [weddingDate, setWeddingDate] = useState('');
@@ -110,6 +117,7 @@ export default function InvitationDetailPage() {
     if (invitation) {
       setBrideName(invitation.brideName || '');
       setGroomName(invitation.groomName || '');
+      setSelectedTemplateId(invitation.templateId || null);
       setBrideParents(invitation.brideParents || '');
       setGroomParents(invitation.groomParents || '');
       setWeddingDate(
@@ -177,6 +185,7 @@ export default function InvitationDetailPage() {
       id,
       brideName,
       groomName,
+      templateId: selectedTemplateId || undefined,
       brideParents: brideParents || undefined,
       groomParents: groomParents || undefined,
       weddingDate: weddingDate || undefined,
@@ -408,6 +417,59 @@ export default function InvitationDetailPage() {
               onChange={(e) => setWeddingDate(e.target.value)}
             />
           </div>
+        </CollapsibleSection>
+
+        {/* Template */}
+        <CollapsibleSection title="Template">
+          {templatesLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 rounded-lg" />
+              ))}
+            </div>
+          ) : templates && templates.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {templates.map((template) => (
+                <Card
+                  key={template.id}
+                  className={cn(
+                    'cursor-pointer overflow-hidden transition-all hover:shadow-md',
+                    selectedTemplateId === template.id &&
+                      'ring-2 ring-primary ring-offset-2'
+                  )}
+                  onClick={() => setSelectedTemplateId(template.id)}
+                >
+                  <div className="relative h-28 bg-gradient-to-br from-primary/10 to-primary/5">
+                    <div className="flex h-full items-center justify-center">
+                      <Heart className="h-7 w-7 text-primary/30" />
+                    </div>
+                    {selectedTemplateId === template.id && (
+                      <div className="absolute right-2 top-2 rounded-full bg-primary p-1">
+                        <Check className="h-4 w-4 text-white" />
+                      </div>
+                    )}
+                    {template.isPremium && (
+                      <div className="absolute left-2 top-2">
+                        <Badge variant="accent" className="text-xs">
+                          Premium
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                  <CardContent className="p-3">
+                    <h3 className="text-sm font-medium">{template.name}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {template.category}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+              Belum ada template tersedia.
+            </p>
+          )}
         </CollapsibleSection>
 
         {/* Quote & Details */}
