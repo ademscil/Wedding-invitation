@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatDate } from '@/lib/utils';
 import { INVITATION_STATUS } from '@/lib/constants';
 import { trpc } from '@/lib/trpc/client';
@@ -45,11 +47,13 @@ interface InvitationCardProps {
 export function InvitationCard({ invitation }: InvitationCardProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const deleteMutation = trpc.invitation.delete.useMutation({
     onSuccess: () => {
       toast.success('Undangan berhasil dihapus');
       utils.invitation.list.invalidate();
+      setShowDeleteConfirm(false);
     },
     onError: () => {
       toast.error('Gagal menghapus undangan');
@@ -71,9 +75,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
   };
 
   const handleDelete = () => {
-    if (window.confirm('Yakin ingin menghapus undangan ini?')) {
-      deleteMutation.mutate({ id: invitation.id });
-    }
+    setShowDeleteConfirm(true);
   };
 
   return (
@@ -158,6 +160,16 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </CardFooter>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Hapus Undangan?"
+        description={`Undangan ${invitation.brideName} & ${invitation.groomName} beserta seluruh data tamu, ucapan, dan riwayatnya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        isLoading={deleteMutation.isLoading}
+        onConfirm={() => deleteMutation.mutate({ id: invitation.id })}
+      />
     </Card>
   );
 }
