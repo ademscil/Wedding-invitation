@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#F7F8F2"/>
+  <path d="M200 150c40 20 70 40 70 70-40-10-60-30-70-70zM200 150c-40 20-70 40-70 70 40-10 60-30 70-70z" fill="#6B8E4E" opacity="0.6"/>
+  <text x="200" y="270" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#3F5A3D">Botanical Line</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#6B8E4E">Timeline &amp; Staggered Text</text>
+</svg>

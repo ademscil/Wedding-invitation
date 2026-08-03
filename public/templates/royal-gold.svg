@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#15120E"/>
+  <rect x="180" y="160" width="40" height="40" fill="none" stroke="#D9BC7C" stroke-width="1.5" transform="rotate(45 200 180)"/>
+  <text x="200" y="270" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#D9BC7C">Royal Gold</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#B08A3E">Timeline &amp; Staggered Text</text>
+</svg>
