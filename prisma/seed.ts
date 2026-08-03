@@ -101,6 +101,36 @@ async function main() {
       isPremium: false,
       thumbnail: '/templates/floral-romance.svg',
     },
+    {
+      name: 'Vintage Arch',
+      slug: 'vintage-arch',
+      category: 'VINTAGE',
+      description: 'Template arch klasik maroon-emas dengan animasi teks bertahap dan timeline acara',
+      componentName: 'vintage-arch',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/vintage-arch.svg',
+    },
+    {
+      name: 'Botanical Line',
+      slug: 'botanical-line',
+      category: 'RUSTIC',
+      description: 'Template hijau botanical dengan timeline acara bergaris dan animasi teks bertahap',
+      componentName: 'botanical-line',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/botanical-line.svg',
+    },
+    {
+      name: 'Royal Gold',
+      slug: 'royal-gold',
+      category: 'ELEGANT',
+      description: 'Template mewah hitam-emas dengan timeline acara dan animasi teks bertahap',
+      componentName: 'royal-gold',
+      isPremium: true,
+      price: 100000,
+      thumbnail: '/templates/royal-gold.svg',
+    },
   ];
 
   for (const template of templates) {
@@ -111,7 +141,7 @@ async function main() {
     });
   }
 
-  console.log('Seed completed: 10 templates created');
+  console.log(`Seed completed: ${templates.length} templates created`);
 }
 
 main()
