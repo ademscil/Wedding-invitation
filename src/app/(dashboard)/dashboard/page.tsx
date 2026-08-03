@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { InvitationCard } from '@/components/dashboard/invitation-card';
+import { FloatingGem } from '@/components/3d/floating-gem';
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -17,13 +18,16 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* Welcome */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold md:text-3xl">
-            Selamat datang, {session?.user?.name || 'Pengguna'}!
-          </h1>
-          <p className="text-muted-foreground">
-            Kelola undangan pernikahan digital Anda
-          </p>
+        <div className="flex items-center gap-3">
+          <FloatingGem className="h-16 w-16 shrink-0" />
+          <div>
+            <h1 className="text-2xl font-bold md:text-3xl">
+              Selamat datang, {session?.user?.name || 'Pengguna'}!
+            </h1>
+            <p className="text-muted-foreground">
+              Kelola undangan pernikahan digital Anda
+            </p>
+          </div>
         </div>
         <Link href="/dashboard/invitations/new">
           <Button>

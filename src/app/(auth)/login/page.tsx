@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Heart, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { loginSchema, type LoginInput } from '@/lib/validations/auth';
+import { FloatingGem } from '@/components/3d/floating-gem';
 
 function LoginForm() {
   const router = useRouter();
@@ -58,8 +59,8 @@ function LoginForm() {
   return (
     <Card className="shadow-lg">
       <CardHeader className="text-center">
-        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary-100">
-          <Heart className="h-6 w-6 text-primary" />
+        <div className="mx-auto mb-1 h-16 w-16">
+          <FloatingGem className="h-full w-full" />
         </div>
         <CardTitle className="font-display text-2xl">Masuk</CardTitle>
         <CardDescription>
