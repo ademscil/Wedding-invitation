@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Save, Loader2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
+import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,8 +28,8 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const tier =
-    (session?.user?.subscriptionTier as SubscriptionTier) || 'FREE';
+  const { data: subscription } = trpc.payment.getSubscription.useQuery();
+  const tier = (subscription?.tier as SubscriptionTier) || 'FREE';
   const tierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.FREE;
 
   const handleSave = async () => {

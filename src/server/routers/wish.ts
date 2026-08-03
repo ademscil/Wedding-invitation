@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { sendEmail, wishNotificationEmail } from '@/lib/email';
 
 export const wishRouter = router({
   list: publicProcedure
@@ -50,19 +51,35 @@ export const wishRouter = router({
     .mutation(async ({ ctx, input }) => {
       const invitation = await ctx.prisma.invitation.findUnique({
         where: { slug: input.invitationSlug },
+        include: { user: { select: { email: true } } },
       });
 
       if (!invitation || invitation.status !== 'PUBLISHED') {
         throw new TRPCError({ code: 'NOT_FOUND' });
       }
 
-      return ctx.prisma.wish.create({
+      const wish = await ctx.prisma.wish.create({
         data: {
           invitationId: invitation.id,
           guestName: input.guestName,
           message: input.message,
         },
       });
+
+      if (invitation.user.email) {
+        sendEmail({
+          to: invitation.user.email,
+          subject: `Ucapan Baru dari ${input.guestName}`,
+          html: wishNotificationEmail({
+            brideName: invitation.brideName,
+            groomName: invitation.groomName,
+            guestName: input.guestName,
+            message: input.message,
+          }),
+        }).catch(() => undefined);
+      }
+
+      return wish;
     }),
 
   listAll: protectedProcedure

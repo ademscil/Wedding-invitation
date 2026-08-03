@@ -1,13 +1,10 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import path from 'node:path';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const dbPath = path.join(__dirname, 'dev.db');
-const adapter = new PrismaBetterSqlite3({ url: dbPath });
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  // Seed templates
   const templates = [
     {
       name: 'Elegant Rose',
@@ -16,7 +13,7 @@ async function main() {
       description: 'Template elegan dengan nuansa rose gold dan ornamen klasik',
       componentName: 'elegant',
       isPremium: false,
-      thumbnail: '/templates/elegant-rose.jpg',
+      thumbnail: '/templates/elegant-rose.svg',
     },
     {
       name: 'Modern Clean',
@@ -25,7 +22,7 @@ async function main() {
       description: 'Template modern dengan desain bersih dan minimalis',
       componentName: 'modern',
       isPremium: false,
-      thumbnail: '/templates/modern-clean.jpg',
+      thumbnail: '/templates/modern-clean.svg',
     },
     {
       name: 'Simply White',
@@ -34,7 +31,7 @@ async function main() {
       description: 'Template minimalis dengan warna putih dan tipografi elegan',
       componentName: 'minimalist',
       isPremium: false,
-      thumbnail: '/templates/simply-white.jpg',
+      thumbnail: '/templates/simply-white.svg',
     },
     {
       name: 'Islamic Green',
@@ -44,7 +41,7 @@ async function main() {
       componentName: 'islamic',
       isPremium: true,
       price: 50000,
-      thumbnail: '/templates/islamic-green.jpg',
+      thumbnail: '/templates/islamic-green.svg',
     },
     {
       name: 'Rustic Garden',
@@ -54,7 +51,55 @@ async function main() {
       componentName: 'rustic',
       isPremium: true,
       price: 50000,
-      thumbnail: '/templates/rustic-garden.jpg',
+      thumbnail: '/templates/rustic-garden.svg',
+    },
+    {
+      name: 'Christian Grace',
+      slug: 'christian-grace',
+      category: 'CHRISTIAN',
+      description: 'Template Kristiani dengan ayat Alkitab dan nuansa biru lembut',
+      componentName: 'christian',
+      isPremium: false,
+      thumbnail: '/templates/christian-grace.svg',
+    },
+    {
+      name: 'Javanese Heritage',
+      slug: 'javanese-heritage',
+      category: 'TRADITIONAL',
+      description: 'Template tradisional Jawa dengan motif batik dan warna coklat hangat',
+      componentName: 'javanese',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/javanese-heritage.svg',
+    },
+    {
+      name: 'Modern Dark',
+      slug: 'modern-dark',
+      category: 'MODERN',
+      description: 'Template modern gelap dengan aksen emas mewah',
+      componentName: 'modern-dark',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/modern-dark.svg',
+    },
+    {
+      name: 'Chinese Double Happiness',
+      slug: 'chinese-double-happiness',
+      category: 'CHINESE',
+      description: 'Template pernikahan Tionghoa dengan simbol kebahagiaan ganda',
+      componentName: 'chinese',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/chinese-double-happiness.svg',
+    },
+    {
+      name: 'Floral Romance',
+      slug: 'floral-romance',
+      category: 'ELEGANT',
+      description: 'Template romantis dengan ornamen bunga merah muda yang cantik',
+      componentName: 'floral',
+      isPremium: false,
+      thumbnail: '/templates/floral-romance.svg',
     },
   ];
 
@@ -66,7 +111,7 @@ async function main() {
     });
   }
 
-  console.log('Seed completed: 5 templates created');
+  console.log('Seed completed: 10 templates created');
 }
 
 main()

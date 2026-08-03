@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { nanoid } from 'nanoid';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { sendEmail, rsvpNotificationEmail } from '@/lib/email';
 
 export const guestRouter = router({
   list: protectedProcedure
@@ -129,19 +130,21 @@ export const guestRouter = router({
     .mutation(async ({ ctx, input }) => {
       const invitation = await ctx.prisma.invitation.findUnique({
         where: { slug: input.invitationSlug },
+        include: { user: { select: { email: true } } },
       });
 
       if (!invitation || invitation.status !== 'PUBLISHED') {
         throw new TRPCError({ code: 'NOT_FOUND' });
       }
 
+      let guestRecord;
       if (input.personalLink) {
         const guest = await ctx.prisma.guest.findUnique({
           where: { personalLink: input.personalLink },
         });
 
         if (guest && guest.invitationId === invitation.id) {
-          return ctx.prisma.guest.update({
+          guestRecord = await ctx.prisma.guest.update({
             where: { id: guest.id },
             data: {
               rsvpStatus: input.status,
@@ -153,18 +156,36 @@ export const guestRouter = router({
         }
       }
 
-      return ctx.prisma.guest.create({
-        data: {
-          invitationId: invitation.id,
-          name: input.name,
-          personalLink: nanoid(10),
-          rsvpStatus: input.status,
-          rsvpGuestCount: input.guestCount,
-          rsvpSession: input.session,
-          dietaryNotes: input.dietaryNotes,
-          groupName: 'Walk-in',
-        },
-      });
+      if (!guestRecord) {
+        guestRecord = await ctx.prisma.guest.create({
+          data: {
+            invitationId: invitation.id,
+            name: input.name,
+            personalLink: nanoid(10),
+            rsvpStatus: input.status,
+            rsvpGuestCount: input.guestCount,
+            rsvpSession: input.session,
+            dietaryNotes: input.dietaryNotes,
+            groupName: 'Walk-in',
+          },
+        });
+      }
+
+      if (invitation.user.email) {
+        sendEmail({
+          to: invitation.user.email,
+          subject: `RSVP Baru dari ${input.name}`,
+          html: rsvpNotificationEmail({
+            brideName: invitation.brideName,
+            groomName: invitation.groomName,
+            guestName: input.name,
+            status: input.status,
+            guestCount: input.guestCount,
+          }),
+        }).catch(() => undefined);
+      }
+
+      return guestRecord;
     }),
 
   getStats: protectedProcedure

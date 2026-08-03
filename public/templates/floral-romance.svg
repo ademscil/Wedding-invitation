@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#fdf0f5"/>
+  <circle cx="120" cy="120" r="30" fill="#f3b6cd"/>
+  <circle cx="290" cy="440" r="40" fill="#f3b6cd"/>
+  <text x="200" y="270" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#c2578a">Floral</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#c2578a">Romance Template</text>
+</svg>
