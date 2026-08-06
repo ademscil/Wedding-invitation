@@ -3,6 +3,9 @@ import { TRPCError } from '@trpc/server';
 import { nanoid } from 'nanoid';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { sendEmail, rsvpNotificationEmail } from '@/lib/email';
+import { assertOwnsGuest, assertOwnsInvitation } from '../lib/authorize';
+import { assertCanAddGuests } from '../lib/limits';
+import { assertRateLimit } from '../lib/rate-limit';
 
 export const guestRouter = router({
   list: protectedProcedure
@@ -14,13 +17,11 @@ export const guestRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const invitation = await ctx.prisma.invitation.findUnique({
-        where: { id: input.invitationId },
-      });
-
-      if (!invitation || invitation.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: 'NOT_FOUND' });
-      }
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
 
       return ctx.prisma.guest.findMany({
         where: {
@@ -43,13 +44,18 @@ export const guestRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const invitation = await ctx.prisma.invitation.findUnique({
-        where: { id: input.invitationId },
-      });
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
 
-      if (!invitation || invitation.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: 'NOT_FOUND' });
-      }
+      await assertCanAddGuests(
+        ctx.prisma,
+        ctx.session.user.id,
+        input.invitationId,
+        1
+      );
 
       const personalLink = nanoid(10);
 
@@ -65,24 +71,32 @@ export const guestRouter = router({
     .input(
       z.object({
         invitationId: z.string(),
-        guests: z.array(
-          z.object({
-            name: z.string().min(1),
-            phone: z.string().optional(),
-            email: z.string().optional(),
-            groupName: z.string().optional(),
-          })
-        ),
+        guests: z
+          .array(
+            z.object({
+              name: z.string().min(1),
+              phone: z.string().optional(),
+              email: z.string().optional(),
+              groupName: z.string().optional(),
+            })
+          )
+          .min(1, 'Minimal satu tamu')
+          .max(1000, 'Maksimal 1000 tamu per impor'),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const invitation = await ctx.prisma.invitation.findUnique({
-        where: { id: input.invitationId },
-      });
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
 
-      if (!invitation || invitation.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: 'NOT_FOUND' });
-      }
+      await assertCanAddGuests(
+        ctx.prisma,
+        ctx.session.user.id,
+        input.invitationId,
+        input.guests.length
+      );
 
       const guestsData = input.guests.map((guest) => ({
         ...guest,
@@ -106,12 +120,14 @@ export const guestRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      await assertOwnsGuest(ctx.prisma, id, ctx.session.user.id);
       return ctx.prisma.guest.update({ where: { id }, data });
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      await assertOwnsGuest(ctx.prisma, input.id, ctx.session.user.id);
       return ctx.prisma.guest.delete({ where: { id: input.id } });
     }),
 
@@ -128,6 +144,13 @@ export const guestRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Public endpoint that can create guest rows — cap it per IP.
+      assertRateLimit(
+        `rsvp:${ctx.ip}`,
+        { limit: 10, windowMs: 60_000 },
+        'Terlalu banyak pengiriman RSVP.'
+      );
+
       const invitation = await ctx.prisma.invitation.findUnique({
         where: { slug: input.invitationSlug },
         include: { user: { select: { email: true } } },
@@ -157,6 +180,15 @@ export const guestRouter = router({
       }
 
       if (!guestRecord) {
+        // Walk-in RSVPs count against the owner's plan quota, otherwise this
+        // public endpoint would be an unbounded way to create guest rows.
+        await assertCanAddGuests(
+          ctx.prisma,
+          invitation.userId,
+          invitation.id,
+          1
+        );
+
         guestRecord = await ctx.prisma.guest.create({
           data: {
             invitationId: invitation.id,
@@ -191,6 +223,12 @@ export const guestRouter = router({
   getStats: protectedProcedure
     .input(z.object({ invitationId: z.string() }))
     .query(async ({ ctx, input }) => {
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
+
       const [total, attending, notAttending, maybe, pending] =
         await Promise.all([
           ctx.prisma.guest.count({

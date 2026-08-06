@@ -1,15 +1,23 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
+import { nanoid } from 'nanoid';
 import { router, protectedProcedure } from '../trpc';
 import { SUBSCRIPTION_TIERS } from '@/lib/constants';
+import {
+  activateSubscription,
+  isSettled,
+  planFromAmount,
+  type MidtransStatus,
+} from '@/lib/payment';
 
 export const paymentRouter = router({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.prisma.user.findUnique({
-      where: { id: ctx.session!.user.id },
+      where: { id: ctx.session.user.id },
       select: { subscriptionTier: true },
     });
     const subscription = await ctx.prisma.subscription.findFirst({
-      where: { userId: ctx.session!.user.id, status: 'ACTIVE' },
+      where: { userId: ctx.session.user.id, status: 'ACTIVE' },
       orderBy: { expiresAt: 'desc' },
     });
     return { tier: user?.subscriptionTier ?? 'FREE', subscription };
@@ -17,7 +25,7 @@ export const paymentRouter = router({
 
   getHistory: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.payment.findMany({
-      where: { userId: ctx.session!.user.id },
+      where: { userId: ctx.session.user.id },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
@@ -33,11 +41,12 @@ export const paymentRouter = router({
       const tierInfo = SUBSCRIPTION_TIERS[input.plan];
       const amount = tierInfo.price;
 
-      const orderId = `INV-${Date.now()}`;
+      // nanoid suffix keeps order ids unique when two checkouts land in the same ms
+      const orderId = `INV-${Date.now()}-${nanoid(6)}`;
 
       const payment = await ctx.prisma.payment.create({
         data: {
-          userId: ctx.session!.user.id,
+          userId: ctx.session.user.id,
           amount,
           currency: 'IDR',
           type: 'SUBSCRIPTION',
@@ -58,7 +67,7 @@ export const paymentRouter = router({
       if (serverKey) {
         try {
           const user = await ctx.prisma.user.findUnique({
-            where: { id: ctx.session!.user.id },
+            where: { id: ctx.session.user.id },
             select: { name: true, email: true },
           });
 
@@ -97,39 +106,105 @@ export const paymentRouter = router({
       };
     }),
 
-  // Called after successful Midtrans payment (simulated / webhook fallback)
+  // Verifies a pending payment against the Midtrans API and activates the plan.
+  // The plan is NEVER taken from the client: it is derived from the stored
+  // payment amount, and activation only happens once the gateway reports
+  // the transaction as settled.
   confirmPayment: protectedProcedure
-    .input(
-      z.object({
-        paymentId: z.string(),
-        plan: z.enum(['STARTER', 'PREMIUM', 'BUSINESS']),
-      })
-    )
+    .input(z.object({ paymentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const expiresAt = new Date();
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      const payment = await ctx.prisma.payment.findUnique({
+        where: { id: input.paymentId },
+      });
 
-      await ctx.prisma.$transaction([
-        ctx.prisma.payment.update({
-          where: { id: input.paymentId },
-          data: { status: 'PAID' },
-        }),
-        ctx.prisma.user.update({
-          where: { id: ctx.session!.user.id },
-          data: { subscriptionTier: input.plan },
-        }),
-        ctx.prisma.subscription.create({
-          data: {
-            userId: ctx.session!.user.id,
-            plan: input.plan,
-            status: 'ACTIVE',
-            paymentId: input.paymentId,
-            startsAt: new Date(),
-            expiresAt,
-          },
-        }),
-      ]);
+      // Ownership check: a payment may only be confirmed by the user it belongs to.
+      if (!payment || payment.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: 'NOT_FOUND' });
+      }
 
-      return { success: true };
+      if (payment.status === 'PAID') {
+        return { success: true, alreadyProcessed: true };
+      }
+
+      const plan = planFromAmount(payment.amount);
+      if (!plan) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Nominal pembayaran tidak dikenali',
+        });
+      }
+
+      const serverKey = process.env.MIDTRANS_SERVER_KEY ?? '';
+
+      // Without a gateway key there is nothing to verify against, so we must not
+      // grant a paid plan. The webhook remains the only path that can activate one.
+      if (!serverKey) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message:
+            'Gateway pembayaran belum dikonfigurasi. Hubungi administrator.',
+        });
+      }
+
+      if (!payment.gatewayReferenceId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Referensi pembayaran tidak ditemukan',
+        });
+      }
+
+      const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+      const statusBaseUrl = isProduction
+        ? 'https://api.midtrans.com/v2'
+        : 'https://api.sandbox.midtrans.com/v2';
+
+      let status: MidtransStatus;
+      try {
+        const response = await fetch(
+          `${statusBaseUrl}/${encodeURIComponent(payment.gatewayReferenceId)}/status`,
+          {
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Basic ${Buffer.from(`${serverKey}:`).toString('base64')}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          console.error(
+            '[midtrans] Status check failed:',
+            await response.text()
+          );
+          throw new Error('status check failed');
+        }
+
+        status = (await response.json()) as MidtransStatus;
+      } catch (error) {
+        console.error('[midtrans] Status API error:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Gagal memverifikasi pembayaran ke gateway',
+        });
+      }
+
+      if (!isSettled(status)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Pembayaran belum lunas',
+        });
+      }
+
+      // Guard against a tampered/mismatched amount at the gateway.
+      const paidAmount = Number.parseFloat(status.gross_amount ?? '0');
+      if (!Number.isFinite(paidAmount) || paidAmount < payment.amount) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Nominal pembayaran tidak sesuai',
+        });
+      }
+
+      await activateSubscription(ctx.prisma, payment.id, payment.userId, plan);
+
+      return { success: true, alreadyProcessed: false };
     }),
 });

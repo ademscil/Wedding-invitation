@@ -18,7 +18,9 @@ export const SUBSCRIPTION_TIERS = {
     hasBroadcast: false,
     hasExport: false,
     hasQrCheckin: false,
+    hasEventPlanner: false,
     duration: '3 bulan',
+    durationMonths: 3,
   },
   STARTER: {
     name: 'Starter',
@@ -36,7 +38,9 @@ export const SUBSCRIPTION_TIERS = {
     hasBroadcast: false,
     hasExport: false,
     hasQrCheckin: false,
+    hasEventPlanner: true,
     duration: '6 bulan',
+    durationMonths: 6,
   },
   PREMIUM: {
     name: 'Premium',
@@ -54,7 +58,9 @@ export const SUBSCRIPTION_TIERS = {
     hasBroadcast: true,
     hasExport: true,
     hasQrCheckin: false,
+    hasEventPlanner: true,
     duration: '12 bulan',
+    durationMonths: 12,
   },
   BUSINESS: {
     name: 'Business',
@@ -72,7 +78,9 @@ export const SUBSCRIPTION_TIERS = {
     hasBroadcast: true,
     hasExport: true,
     hasQrCheckin: true,
+    hasEventPlanner: true,
     duration: 'Lifetime (2 tahun)',
+    durationMonths: 24,
   },
 } as const;
 
@@ -120,4 +128,32 @@ export const BANKS = [
   { name: 'Bank Syariah Indonesia', code: 'bsi' },
   { name: 'Bank Jago', code: 'jago' },
   { name: 'Permata', code: 'permata' },
+] as const;
+
+export const PLANNER_CATEGORIES = [
+  { value: 'VENUE', label: 'Tempat' },
+  { value: 'CATERING', label: 'Katering' },
+  { value: 'DECOR', label: 'Dekorasi' },
+  { value: 'ATTIRE', label: 'Busana & Rias' },
+  { value: 'DOCUMENTATION', label: 'Dokumentasi' },
+  { value: 'ENTERTAINMENT', label: 'Hiburan' },
+  { value: 'OTHER', label: 'Lainnya' },
+] as const;
+
+export const VENDOR_STATUS = {
+  CONTACTED: { label: 'Dihubungi', color: 'bg-gray-100 text-gray-800' },
+  NEGOTIATING: { label: 'Negosiasi', color: 'bg-blue-100 text-blue-800' },
+  BOOKED: { label: 'Dibooking', color: 'bg-yellow-100 text-yellow-800' },
+  PAID: { label: 'Lunas', color: 'bg-green-100 text-green-800' },
+  CANCELLED: { label: 'Batal', color: 'bg-red-100 text-red-800' },
+} as const;
+
+export const CHECKLIST_PHASES = [
+  { value: '12_MONTHS', label: '12 bulan sebelum' },
+  { value: '6_MONTHS', label: '6 bulan sebelum' },
+  { value: '3_MONTHS', label: '3 bulan sebelum' },
+  { value: '1_MONTH', label: '1 bulan sebelum' },
+  { value: '1_WEEK', label: '1 minggu sebelum' },
+  { value: 'DAY_OF', label: 'Hari-H' },
+  { value: 'GENERAL', label: 'Umum' },
 ] as const;

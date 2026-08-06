@@ -37,6 +37,7 @@ import {
   generateGuestQrCode,
   downloadImportTemplate,
 } from '@/lib/guest-utils';
+import { useFeature } from '@/components/dashboard/feature-gate';
 
 export default function GuestsPage() {
   const params = useParams();
@@ -54,6 +55,8 @@ export default function GuestsPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [deleteGuestId, setDeleteGuestId] = useState<string | null>(null);
   const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
+  const canExport = useFeature('hasExport');
+  const canBroadcast = useFeature('hasBroadcast');
   const [broadcastQueue, setBroadcastQueue] = useState<Array<{ id: string; name: string; phone: string; personalLink: string }> | null>(null);
   const [broadcastIndex, setBroadcastIndex] = useState(0);
   const [broadcastSent, setBroadcastSent] = useState<Set<string>>(new Set());
@@ -145,6 +148,12 @@ export default function GuestsPage() {
   };
 
   const handleStartBroadcast = () => {
+    if (!canBroadcast) {
+      toast.error(
+        'Fitur ini tidak tersedia pada paket Anda. Upgrade untuk menggunakannya.'
+      );
+      return;
+    }
     if (!guests) return;
     const queue = guests
       .filter((g) => selectedGuestIds.has(g.id) && g.phone)
@@ -202,6 +211,12 @@ export default function GuestsPage() {
   };
 
   const handleExportCsv = () => {
+    if (!canExport) {
+      toast.error(
+        'Fitur ini tidak tersedia pada paket Anda. Upgrade untuk menggunakannya.'
+      );
+      return;
+    }
     if (!guests?.length) return toast.error('Tidak ada tamu untuk diekspor');
     exportGuestsToCsv(
       guests.map((g) => ({
@@ -220,6 +235,12 @@ export default function GuestsPage() {
   };
 
   const handleExportExcel = () => {
+    if (!canExport) {
+      toast.error(
+        'Fitur ini tidak tersedia pada paket Anda. Upgrade untuk menggunakannya.'
+      );
+      return;
+    }
     if (!guests?.length) return toast.error('Tidak ada tamu untuk diekspor');
     exportGuestsToExcel(
       guests.map((g) => ({
@@ -292,15 +313,19 @@ export default function GuestsPage() {
             <Upload className="mr-1.5 h-4 w-4" />
             Import
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>
-            <Download className="mr-1.5 h-4 w-4" />
-            CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel}>
-            <Download className="mr-1.5 h-4 w-4" />
-            Excel
-          </Button>
-          {selectedGuestIds.size > 0 && (
+          {canExport && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleExportCsv}>
+                <Download className="mr-1.5 h-4 w-4" />
+                CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                <Download className="mr-1.5 h-4 w-4" />
+                Excel
+              </Button>
+            </>
+          )}
+          {canBroadcast && selectedGuestIds.size > 0 && (
             <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={handleStartBroadcast}>
               <MessageCircle className="mr-1.5 h-4 w-4" />
               Broadcast WhatsApp ({selectedGuestIds.size})

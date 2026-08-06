@@ -5,11 +5,32 @@ import { ZodError } from 'zod';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-export const createTRPCContext = async () => {
+/**
+ * Resolves the caller's IP for rate limiting.
+ *
+ * Only proxy headers are available in the fetch adapter. These are spoofable
+ * unless the platform overwrites them (Vercel and most CDNs do), so treat the
+ * result as best-effort and never as an identity.
+ */
+function getClientIp(headers?: Headers): string {
+  if (!headers) return 'unknown';
+
+  const forwarded = headers.get('x-forwarded-for');
+  if (forwarded) {
+    // Left-most entry is the original client.
+    const first = forwarded.split(',')[0]?.trim();
+    if (first) return first;
+  }
+
+  return headers.get('x-real-ip') ?? 'unknown';
+}
+
+export const createTRPCContext = async (opts?: { headers?: Headers }) => {
   const session = await getServerSession(authOptions);
   return {
     session,
     prisma,
+    ip: getClientIp(opts?.headers),
   };
 };
 

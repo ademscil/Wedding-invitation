@@ -131,6 +131,17 @@ async function main() {
       price: 100000,
       thumbnail: '/templates/royal-gold.svg',
     },
+    {
+      name: 'Floral Vintage',
+      slug: 'floral-vintage',
+      category: 'VINTAGE',
+      description:
+        'Template floral vintage pastel dengan latar gazebo watercolor, animasi parallax, timeline acara bergaris, dan kupu-kupu',
+      componentName: 'floral-vintage',
+      isPremium: true,
+      price: 95000,
+      thumbnail: '/templates/floral-vintage.svg',
+    },
   ];
 
   for (const template of templates) {

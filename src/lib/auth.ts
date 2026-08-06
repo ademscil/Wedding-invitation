@@ -36,8 +36,9 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email dan password wajib diisi');
         }
 
+        // Emails are stored lower-cased at registration, so normalise here too.
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: credentials.email.trim().toLowerCase() },
         });
 
         if (!user || !user.hashedPassword) {

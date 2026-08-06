@@ -3,6 +3,16 @@ import type { Metadata } from 'next';
 import { prisma } from '@/lib/db';
 import { InvitationRenderer } from '@/components/invitation/invitation-renderer';
 import { formatDate } from '@/lib/utils';
+import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/constants';
+
+/**
+ * Always rendered per request: the page reads `searchParams.to` and looks the
+ * invitation up in the database, so it can never be statically generated.
+ *
+ * Declaring this also keeps Next's static-paths worker from loading the route
+ * in a separate process during dev, which fails to resolve its vendor chunks.
+ */
+export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: { slug: string };
@@ -14,6 +24,8 @@ async function getInvitation(slug: string) {
     where: { slug },
     include: {
       template: true,
+      // The owner's plan decides whether the watermark is rendered.
+      user: { select: { subscriptionTier: true } },
       wishes: {
         where: { isApproved: true },
         orderBy: { createdAt: 'desc' },
@@ -23,6 +35,23 @@ async function getInvitation(slug: string) {
   });
 
   return invitation;
+}
+
+type PublicInvitation = NonNullable<Awaited<ReturnType<typeof getInvitation>>>;
+
+/** Published and still inside the active window sold by the plan. */
+function isLive(invitation: PublicInvitation | null): invitation is PublicInvitation {
+  if (!invitation || invitation.status !== 'PUBLISHED') return false;
+  if (invitation.expiresAt && invitation.expiresAt.getTime() < Date.now()) {
+    return false;
+  }
+  return true;
+}
+
+function hasWatermark(tier: string): boolean {
+  const config =
+    SUBSCRIPTION_TIERS[tier as SubscriptionTier] ?? SUBSCRIPTION_TIERS.FREE;
+  return config.hasWatermark;
 }
 
 async function getGuestName(invitationId: string, personalLink: string) {
@@ -48,7 +77,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const invitation = await getInvitation(params.slug);
 
-  if (!invitation || invitation.status !== 'PUBLISHED') {
+  if (!isLive(invitation)) {
     return { title: 'Undangan Tidak Ditemukan' };
   }
 
@@ -80,7 +109,7 @@ export default async function InvitationPage({
 }: PageProps) {
   const invitation = await getInvitation(params.slug);
 
-  if (!invitation || invitation.status !== 'PUBLISHED') {
+  if (!isLive(invitation)) {
     notFound();
   }
 
@@ -99,5 +128,11 @@ export default async function InvitationPage({
     })
     .catch(() => {});
 
-  return <InvitationRenderer invitation={invitation} guestName={guestName} />;
+  return (
+    <InvitationRenderer
+      invitation={invitation}
+      guestName={guestName}
+      showWatermark={hasWatermark(invitation.user.subscriptionTier)}
+    />
+  );
 }

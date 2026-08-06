@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { sendEmail, wishNotificationEmail } from '@/lib/email';
+import { assertOwnsInvitation, assertOwnsWish } from '../lib/authorize';
+import { assertRateLimit } from '../lib/rate-limit';
 
 export const wishRouter = router({
   list: publicProcedure
@@ -49,6 +51,13 @@ export const wishRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Public and unauthenticated: cap per IP so the guestbook can't be flooded.
+      assertRateLimit(
+        `wish:${ctx.ip}`,
+        { limit: 5, windowMs: 60_000 },
+        'Terlalu banyak ucapan dikirim.'
+      );
+
       const invitation = await ctx.prisma.invitation.findUnique({
         where: { slug: input.invitationSlug },
         include: { user: { select: { email: true } } },
@@ -56,6 +65,24 @@ export const wishRouter = router({
 
       if (!invitation || invitation.status !== 'PUBLISHED') {
         throw new TRPCError({ code: 'NOT_FOUND' });
+      }
+
+      // Reject an identical message repeated within the hour (double-submit or bot).
+      const duplicate = await ctx.prisma.wish.findFirst({
+        where: {
+          invitationId: invitation.id,
+          guestName: input.guestName,
+          message: input.message,
+          createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+        },
+        select: { id: true },
+      });
+
+      if (duplicate) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'Ucapan yang sama sudah terkirim.',
+        });
       }
 
       const wish = await ctx.prisma.wish.create({
@@ -85,6 +112,12 @@ export const wishRouter = router({
   listAll: protectedProcedure
     .input(z.object({ invitationId: z.string() }))
     .query(async ({ ctx, input }) => {
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
+
       return ctx.prisma.wish.findMany({
         where: { invitationId: input.invitationId },
         orderBy: { createdAt: 'desc' },
@@ -99,6 +132,8 @@ export const wishRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertOwnsWish(ctx.prisma, input.id, ctx.session.user.id);
+
       return ctx.prisma.wish.update({
         where: { id: input.id },
         data: { isApproved: input.isApproved },

@@ -16,6 +16,7 @@ import {
   Users,
   Check,
   Heart,
+  ListChecks,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
@@ -376,6 +377,13 @@ export default function InvitationDetailPage() {
         >
           <Users className="h-4 w-4" />
           Tamu ({invitation._count.guests})
+        </Link>
+        <Link
+          href={`/dashboard/invitations/${id}/planner`}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-4 py-2 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ListChecks className="h-4 w-4" />
+          Planner
         </Link>
       </div>
 
