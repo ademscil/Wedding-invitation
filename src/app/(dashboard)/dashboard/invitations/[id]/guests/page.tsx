@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { RSVP_STATUS, GUEST_GROUPS } from '@/lib/constants';
@@ -67,7 +68,13 @@ export default function GuestsPage() {
     { enabled: !!id }
   );
 
-  const { data: guests, isLoading: guestsLoading } = trpc.guest.list.useQuery(
+  const {
+    data: guests,
+    isLoading: guestsLoading,
+    isError: guestsError,
+    error: guestsErrorObj,
+    refetch: refetchGuests,
+  } = trpc.guest.list.useQuery(
     { invitationId: id, status: statusFilter || undefined },
     { enabled: !!id }
   );
@@ -400,7 +407,13 @@ export default function GuestsPage() {
       </div>
 
       {/* Guest Table */}
-      {guestsLoading ? (
+      {guestsError ? (
+        <ErrorState
+          title="Gagal memuat daftar tamu"
+          message={guestsErrorObj?.message}
+          onRetry={() => refetchGuests()}
+        />
+      ) : guestsLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded-lg" />
@@ -610,6 +623,7 @@ export default function GuestsPage() {
               <p className="text-sm font-medium">{importFile ? importFile.name : 'Klik atau drag file ke sini'}</p>
               <p className="text-xs text-muted-foreground">CSV atau Excel (.xlsx)</p>
               <input
+                    name="guest-import-file" aria-label="Berkas impor tamu"
                 ref={fileInputRef}
                 type="file"
                 accept=".csv,.xlsx,.xls"

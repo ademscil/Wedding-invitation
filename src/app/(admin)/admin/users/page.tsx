@@ -36,6 +36,7 @@ export default function AdminUsersPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
+                type="search" name="user-search" aria-label="Cari pengguna"
             className="w-full rounded-md border bg-background py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             placeholder="Cari nama atau email..."
             value={searchInput}

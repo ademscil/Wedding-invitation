@@ -319,11 +319,9 @@ export const plannerRouter = router({
         where: { invitationId: input.invitationId },
       });
 
+      // Idempotent: a double-click must not raise, it just has nothing to do.
       if (existing > 0) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: 'Checklist sudah berisi tugas. Hapus dulu untuk memuat ulang.',
-        });
+        return { created: 0, alreadySeeded: true };
       }
 
       const defaults: Array<{ title: string; phase: z.infer<typeof PHASE> }> = [
@@ -353,6 +351,6 @@ export const plannerRouter = router({
         })),
       });
 
-      return { created: defaults.length };
+      return { created: defaults.length, alreadySeeded: false };
     }),
 });

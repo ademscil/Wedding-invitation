@@ -252,11 +252,11 @@ export const seatingRouter = router({
         }),
       ]);
 
+      // Asking to arrange before creating any table is an ordinary thing to do,
+      // not a failure — answer with guidance instead of a 400 the client has to
+      // catch and the browser logs as an error.
       if (tables.length === 0) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Buat minimal satu meja sebelum menyusun otomatis.',
-        });
+        return { seated: 0, unseated: guests.length, noTables: true };
       }
 
       const seatedAlready = await ctx.prisma.guest.groupBy({
@@ -290,6 +290,7 @@ export const seatingRouter = router({
       return {
         seated: assignments.length,
         unseated: guests.length - assignments.length,
+        noTables: false,
       };
     }),
 });

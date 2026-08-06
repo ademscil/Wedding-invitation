@@ -65,6 +65,14 @@ export function SeatingPanel({
   });
   const autoArrange = trpc.seating.autoArrange.useMutation({
     onSuccess: (result) => {
+      if (result.noTables) {
+        toast.info('Buat minimal satu meja dulu sebelum menyusun otomatis.');
+        return;
+      }
+      if (result.seated === 0 && result.unseated === 0) {
+        toast.info('Semua tamu sudah mendapat meja.');
+        return;
+      }
       toast.success(
         result.unseated > 0
           ? `${result.seated} tamu didudukkan, ${result.unseated} belum kebagian kursi`
@@ -120,7 +128,7 @@ export function SeatingPanel({
               variant="outline"
               size="sm"
               onClick={() => autoArrange.mutate({ invitationId })}
-              disabled={autoArrange.isPending}
+              disabled={autoArrange.isPending || !data?.tables.length}
             >
               <Wand2 className="mr-1.5 h-4 w-4" />
               Susun otomatis
@@ -129,7 +137,7 @@ export function SeatingPanel({
               variant="outline"
               size="sm"
               onClick={() => setConfirmReset(true)}
-              disabled={resetSeating.isPending}
+              disabled={resetSeating.isPending || !data?.summary.seatsUsed}
             >
               <RotateCcw className="mr-1.5 h-4 w-4" />
               Kosongkan
@@ -139,12 +147,15 @@ export function SeatingPanel({
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
+              name="table-name"
               placeholder="Nama meja (mis. Meja Keluarga 1)"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className="sm:flex-1"
             />
             <Input
+              name="table-capacity"
+              aria-label="Kapasitas meja"
               placeholder="Kapasitas"
               inputMode="numeric"
               value={form.capacity}

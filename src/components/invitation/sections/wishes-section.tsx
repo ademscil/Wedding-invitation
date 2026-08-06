@@ -126,7 +126,11 @@ export function WishesSection({
         >
           <div>
             <input
+              id="wish-name"
+              name="wish-name"
               type="text"
+              autoComplete="name"
+              aria-label="Nama Anda"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nama Anda"
@@ -143,6 +147,9 @@ export function WishesSection({
 
           <div>
             <textarea
+              id="wish-message"
+              name="wish-message"
+              aria-label="Ucapan dan doa"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Tulis ucapan dan doa Anda..."

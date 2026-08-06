@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { InvitationCard } from '@/components/dashboard/invitation-card';
 import { QuotaBanner } from '@/components/dashboard/quota-banner';
@@ -14,7 +15,13 @@ import { FloatingGem } from '@/components/3d/floating-gem';
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const { data: invitations, isLoading } = trpc.invitation.list.useQuery();
+  const {
+    data: invitations,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = trpc.invitation.list.useQuery();
 
   return (
     <div className="space-y-8">
@@ -45,7 +52,9 @@ export default function DashboardPage() {
       <QuotaBanner />
 
       {/* Stats */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      ) : isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />

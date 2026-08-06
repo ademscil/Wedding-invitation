@@ -171,6 +171,10 @@ export default function PlannerPage() {
   });
   const seedChecklist = trpc.planner.seedChecklist.useMutation({
     onSuccess: (result) => {
+      if (result.alreadySeeded) {
+        toast.info('Checklist sudah berisi tugas.');
+        return;
+      }
       toast.success(`${result.created} tugas standar dimuat`);
       refresh();
     },
@@ -334,6 +338,7 @@ export default function PlannerPage() {
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
+                name="budget-name"
                 placeholder="Nama item (mis. Sewa gedung)"
                 value={budgetForm.name}
                 onChange={(e) =>
@@ -342,6 +347,8 @@ export default function PlannerPage() {
                 className="sm:flex-1"
               />
               <select
+                name="budget-category"
+                aria-label="Kategori anggaran"
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                 value={budgetForm.category}
                 onChange={(e) =>
@@ -358,6 +365,7 @@ export default function PlannerPage() {
                 ))}
               </select>
               <Input
+                name="budget-estimate"
                 placeholder="Estimasi biaya"
                 inputMode="numeric"
                 value={budgetForm.estimatedCost}
@@ -424,6 +432,7 @@ export default function PlannerPage() {
                     <label className="flex cursor-pointer items-center gap-1.5 text-sm">
                       <input
                         type="checkbox"
+                        aria-label={`Tandai ${item.name} lunas`}
                         checked={item.isPaid}
                         onChange={(e) =>
                           updateBudget.mutate({
@@ -465,6 +474,7 @@ export default function PlannerPage() {
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
+                name="vendor-name"
                 placeholder="Nama vendor"
                 value={vendorForm.name}
                 onChange={(e) =>
@@ -473,6 +483,8 @@ export default function PlannerPage() {
                 className="sm:flex-1"
               />
               <select
+                name="vendor-category"
+                aria-label="Kategori vendor"
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                 value={vendorForm.category}
                 onChange={(e) =>
@@ -489,6 +501,8 @@ export default function PlannerPage() {
                 ))}
               </select>
               <Input
+                name="vendor-phone"
+                autoComplete="tel"
                 placeholder="No. HP"
                 value={vendorForm.phone}
                 onChange={(e) =>
@@ -497,6 +511,7 @@ export default function PlannerPage() {
                 className="sm:w-40"
               />
               <Input
+                name="vendor-price"
                 placeholder="Harga"
                 inputMode="numeric"
                 value={vendorForm.price}
@@ -561,6 +576,7 @@ export default function PlannerPage() {
                       </p>
                     )}
                     <select
+                      aria-label={`Status vendor ${vendor.name}`}
                       className="h-9 rounded-md border border-input bg-background px-2 text-xs"
                       value={vendor.status}
                       onChange={(e) =>
@@ -617,6 +633,7 @@ export default function PlannerPage() {
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
+                name="task-title"
                 placeholder="Tugas baru"
                 value={taskForm.title}
                 onChange={(e) =>
@@ -625,6 +642,8 @@ export default function PlannerPage() {
                 className="sm:flex-1"
               />
               <select
+                name="task-phase"
+                aria-label="Fase tugas"
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                 value={taskForm.phase}
                 onChange={(e) =>
@@ -639,6 +658,8 @@ export default function PlannerPage() {
               </select>
               <Input
                 type="date"
+                name="task-due-date"
+                aria-label="Tenggat tugas"
                 value={taskForm.dueDate}
                 onChange={(e) =>
                   setTaskForm((f) => ({ ...f, dueDate: e.target.value }))
@@ -691,6 +712,7 @@ export default function PlannerPage() {
                     >
                       <input
                         type="checkbox"
+                        aria-label={`Tandai ${task.title} selesai`}
                         checked={task.isDone}
                         onChange={(e) =>
                           updateChecklist.mutate({

@@ -19,6 +19,7 @@ import { ArrowLeft, Eye, Users, MessageCircle, Gift } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useFeature, FeatureLocked } from '@/components/dashboard/feature-gate';
@@ -53,9 +54,17 @@ export default function AnalyticsPage() {
   const hasAnalytics = useFeature('hasAnalytics');
 
   const { id } = useParams<{ id: string }>();
-  const { data: stats, isLoading } = trpc.analytics.getStats.useQuery(
+  const {
+    data: stats,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = trpc.analytics.getStats.useQuery(
     { invitationId: id },
-    { enabled: !!id }
+    // The plan gate answers FORBIDDEN; the locked screen below handles that,
+    // so only query once we know the feature is available.
+    { enabled: !!id && hasAnalytics === true }
   );
   const { data: invitation } = trpc.invitation.getById.useQuery(
     { id },
@@ -92,8 +101,9 @@ export default function AnalyticsPage() {
       ].filter((d) => d.value > 0)
     : [];
 
-  if (isLoading) {
-    if (hasAnalytics === false) {
+  // Order matters: the plan gate decides whether this page is available at all,
+  // then a failed load, and only then the loading skeleton.
+  if (hasAnalytics === false) {
     return (
       <div className="p-6">
         <FeatureLocked
@@ -105,7 +115,16 @@ export default function AnalyticsPage() {
     );
   }
 
-  return (
+  if (isError) {
+    return (
+      <div className="p-6">
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  if (isLoading || hasAnalytics === undefined) {
+    return (
       <div className="space-y-6 p-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
