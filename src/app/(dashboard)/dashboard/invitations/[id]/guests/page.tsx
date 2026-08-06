@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
+import { useEscapeKey } from '@/hooks/use-escape-key';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { RSVP_STATUS, GUEST_GROUPS } from '@/lib/constants';
@@ -62,6 +63,10 @@ export default function GuestsPage() {
   const [broadcastIndex, setBroadcastIndex] = useState(0);
   const [broadcastSent, setBroadcastSent] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEscapeKey(showAddDialog, () => setShowAddDialog(false));
+  useEscapeKey(showImportDialog, () => setShowImportDialog(false));
+  useEscapeKey(!!showQrModal, () => setShowQrModal(null));
 
   const { data: invitation } = trpc.invitation.getById.useQuery(
     { id },
@@ -539,7 +544,7 @@ export default function GuestsPage() {
       {/* Add Guest Dialog */}
       {showAddDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-label="Tambah Tamu" className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Tambah Tamu</h2>
               <Button variant="ghost" size="icon" onClick={() => setShowAddDialog(false)}>
@@ -590,7 +595,7 @@ export default function GuestsPage() {
       {/* Import Dialog */}
       {showImportDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-label="Import Tamu" className="mx-4 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Import Tamu</h2>
               <Button variant="ghost" size="icon" onClick={() => { setShowImportDialog(false); setImportFile(null); setImportPreview([]); }}>
@@ -667,7 +672,7 @@ export default function GuestsPage() {
       {/* QR Code Modal */}
       {showQrModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl text-center">
+          <div role="dialog" aria-modal="true" aria-label="QR Code Tamu" className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl text-center">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">QR Code Tamu</h2>
               <Button variant="ghost" size="icon" onClick={() => setShowQrModal(null)}>
@@ -707,7 +712,7 @@ export default function GuestsPage() {
       {/* Broadcast WhatsApp Queue Modal */}
       {broadcastQueue && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-label="Broadcast WhatsApp" className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Broadcast WhatsApp</h2>
               <Button variant="ghost" size="icon" onClick={handleCloseBroadcast}>

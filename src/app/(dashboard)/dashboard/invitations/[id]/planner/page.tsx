@@ -103,12 +103,18 @@ export default function PlannerPage() {
   const { data: checklist, isLoading: checklistLoading } =
     trpc.planner.listChecklist.useQuery({ invitationId: id }, { enabled });
 
-  const refresh = () => {
-    utils.planner.getSummary.invalidate({ invitationId: id });
-    utils.planner.listBudget.invalidate({ invitationId: id });
-    utils.planner.listVendors.invalidate({ invitationId: id });
-    utils.planner.listChecklist.invalidate({ invitationId: id });
-  };
+  /**
+   * `refetchType: 'all'` matters here: the four lists live behind a tab, so the
+   * inactive ones are only marked stale by a plain invalidate and would keep
+   * showing the previous result until the panel remounts.
+   */
+  const refresh = () =>
+    Promise.all([
+      utils.planner.getSummary.invalidate({ invitationId: id }, { refetchType: 'all' }),
+      utils.planner.listBudget.invalidate({ invitationId: id }, { refetchType: 'all' }),
+      utils.planner.listVendors.invalidate({ invitationId: id }, { refetchType: 'all' }),
+      utils.planner.listChecklist.invalidate({ invitationId: id }, { refetchType: 'all' }),
+    ]);
 
   const onError = (error: { message: string }) =>
     toast.error(error.message || 'Terjadi kesalahan');
@@ -120,9 +126,27 @@ export default function PlannerPage() {
     },
     onError,
   });
+  /**
+   * Toggles are applied to the cache first and rolled back on failure.
+   * Without this the checkbox is driven purely by server state, so it visibly
+   * snaps back to its old value until the refetch lands.
+   */
   const updateBudget = trpc.planner.updateBudget.useMutation({
-    onSuccess: refresh,
-    onError,
+    onMutate: async (vars) => {
+      await utils.planner.listBudget.cancel({ invitationId: id });
+      const previous = utils.planner.listBudget.getData({ invitationId: id });
+      utils.planner.listBudget.setData({ invitationId: id }, (old) =>
+        old?.map((item) => (item.id === vars.id ? { ...item, ...vars } : item))
+      );
+      return { previous };
+    },
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        utils.planner.listBudget.setData({ invitationId: id }, context.previous);
+      }
+      onError(error);
+    },
+    onSettled: refresh,
   });
   const deleteBudget = trpc.planner.deleteBudget.useMutation({
     onSuccess: () => {
@@ -140,8 +164,21 @@ export default function PlannerPage() {
     onError,
   });
   const updateVendor = trpc.planner.updateVendor.useMutation({
-    onSuccess: refresh,
-    onError,
+    onMutate: async (vars) => {
+      await utils.planner.listVendors.cancel({ invitationId: id });
+      const previous = utils.planner.listVendors.getData({ invitationId: id });
+      utils.planner.listVendors.setData({ invitationId: id }, (old) =>
+        old?.map((v) => (v.id === vars.id ? { ...v, ...vars } : v))
+      );
+      return { previous };
+    },
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        utils.planner.listVendors.setData({ invitationId: id }, context.previous);
+      }
+      onError(error);
+    },
+    onSettled: refresh,
   });
   const deleteVendor = trpc.planner.deleteVendor.useMutation({
     onSuccess: () => {
@@ -159,8 +196,28 @@ export default function PlannerPage() {
     onError,
   });
   const updateChecklist = trpc.planner.updateChecklist.useMutation({
-    onSuccess: refresh,
-    onError,
+    onMutate: async (vars) => {
+      await utils.planner.listChecklist.cancel({ invitationId: id });
+      const previous = utils.planner.listChecklist.getData({ invitationId: id });
+      utils.planner.listChecklist.setData({ invitationId: id }, (old) =>
+        old?.map((task) =>
+          task.id === vars.id
+            ? { ...task, ...vars, dueDate: task.dueDate }
+            : task
+        )
+      );
+      return { previous };
+    },
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        utils.planner.listChecklist.setData(
+          { invitationId: id },
+          context.previous
+        );
+      }
+      onError(error);
+    },
+    onSettled: refresh,
   });
   const deleteChecklist = trpc.planner.deleteChecklist.useMutation({
     onSuccess: () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Users } from 'lucide-react';
 
 export type CanvasTable = {
@@ -32,12 +32,35 @@ export function SeatingCanvas({
   onMove: (id: string, x: number, y: number) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [dragging, setDragging] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  // Ref mirrors draggingId so the duplicate-event guard sees it synchronously.
+  const draggingRef = useRef<string | null>(null);
   // Local overrides while a drag is in flight, so the table tracks the pointer
   // without waiting for the server round-trip.
   const [preview, setPreview] = useState<Record<string, { x: number; y: number }>>(
     {}
   );
+
+  // Drop the local override once the server reports the same position, so a
+  // failed save is visible instead of being masked by stale preview state.
+  useEffect(() => {
+    setPreview((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const table of tables) {
+        const local = next[table.id];
+        if (
+          local &&
+          local.x === table.positionX &&
+          local.y === table.positionY
+        ) {
+          delete next[table.id];
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [tables]);
 
   const positionFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -53,41 +76,53 @@ export function SeatingCanvas({
     };
   };
 
-  const handlePointerDown = (
-    event: React.PointerEvent<HTMLButtonElement>,
+  /**
+   * Drag is tracked on window rather than through setPointerCapture: capture
+   * throws for some synthetic and touch pointers, which would silently kill the
+   * whole interaction. Window listeners work the same for mouse, pen and touch.
+   */
+  const startDrag = (
+    event: React.PointerEvent<HTMLButtonElement> | React.MouseEvent<HTMLButtonElement>,
     id: string
   ) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(id);
+    // A pointerdown is normally followed by a compatibility mousedown; ignore
+    // the second one so a drag is never started twice.
+    if (draggingRef.current) return;
+
+    event.preventDefault();
+    draggingRef.current = id;
+    setDraggingId(id);
     onSelect(id);
-  };
 
-  const handlePointerMove = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    id: string
-  ) => {
-    if (dragging !== id) return;
-    const next = positionFromEvent(event.clientX, event.clientY);
-    if (next) setPreview((p) => ({ ...p, [id]: next }));
-  };
+    const handleMove = (moveEvent: PointerEvent | MouseEvent) => {
+      const next = positionFromEvent(moveEvent.clientX, moveEvent.clientY);
+      if (next) setPreview((p) => ({ ...p, [id]: next }));
+    };
 
-  const handlePointerUp = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    id: string
-  ) => {
-    if (dragging !== id) return;
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    setDragging(null);
+    const handleUp = (upEvent: PointerEvent | MouseEvent) => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      draggingRef.current = null;
+      setDraggingId(null);
 
-    const final = preview[id];
-    if (final) {
-      onMove(id, final.x, final.y);
-      setPreview((p) => {
-        const next = { ...p };
-        delete next[id];
-        return next;
-      });
-    }
+      const final = positionFromEvent(upEvent.clientX, upEvent.clientY);
+      if (final) {
+        onMove(id, final.x, final.y);
+        // Keep the preview until the refetch lands, otherwise the table snaps
+        // back to its old spot for a frame.
+        setPreview((p) => ({ ...p, [id]: final }));
+      }
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+    // Mouse fallback for environments that never synthesise pointer events.
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
   };
 
   return (
@@ -117,12 +152,12 @@ export function SeatingCanvas({
           <button
             key={table.id}
             type="button"
-            onPointerDown={(e) => handlePointerDown(e, table.id)}
-            onPointerMove={(e) => handlePointerMove(e, table.id)}
-            onPointerUp={(e) => handlePointerUp(e, table.id)}
-            onPointerCancel={(e) => handlePointerUp(e, table.id)}
+            onPointerDown={(e) => startDrag(e, table.id)}
+            onMouseDown={(e) => startDrag(e, table.id)}
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
             className={`absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none flex-col items-center justify-center border-2 bg-background text-center shadow-sm transition-colors active:cursor-grabbing ${
+              draggingId === table.id ? 'z-10 shadow-lg' : ''
+            } ${
               table.shape === 'RECTANGLE'
                 ? 'h-16 w-28 rounded-lg'
                 : 'h-24 w-24 rounded-full'

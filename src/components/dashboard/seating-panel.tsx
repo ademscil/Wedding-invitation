@@ -32,9 +32,11 @@ export function SeatingPanel({
     { enabled }
   );
 
-  const refresh = () => {
-    utils.seating.getLayout.invalidate({ invitationId });
-  };
+  const refresh = () =>
+    utils.seating.getLayout.invalidate(
+      { invitationId },
+      { refetchType: 'all' }
+    );
 
   const onError = (error: { message: string }) =>
     toast.error(error.message || 'Terjadi kesalahan');
