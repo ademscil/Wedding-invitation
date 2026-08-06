@@ -70,34 +70,61 @@ export default function UpgradePage() {
     try {
       const result = await createCheckout.mutateAsync({ plan });
 
-      // If a Snap token was issued, open Midtrans Snap payment popup
-      if (result.snapToken && typeof window !== 'undefined') {
-        const snapJsUrl = result.isProduction
-          ? 'https://app.midtrans.com/snap/snap.js'
-          : 'https://app.sandbox.midtrans.com/snap/snap.js';
-
-        const script = document.createElement('script');
-        script.src = snapJsUrl;
-        script.setAttribute('data-client-key', process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ?? '');
-        script.onload = () => {
-          // @ts-expect-error — Midtrans Snap injected globally
-          window.snap?.pay(result.snapToken, {
-            onSuccess: async () => {
-              await confirmPayment.mutateAsync({ paymentId: result.paymentId, plan });
-            },
-            onPending: () => toast.info('Menunggu pembayaran...'),
-            onError: () => toast.error('Pembayaran gagal'),
-            onClose: () => setLoading(null),
-          });
-        };
-        document.head.appendChild(script);
-      } else {
-        // Demo mode (no Midtrans key configured): directly confirm
-        await confirmPayment.mutateAsync({ paymentId: result.paymentId, plan });
+      if (!result.snapToken || typeof window === 'undefined') {
+        // No Snap token means the gateway is not configured. The plan can only be
+        // activated by a verified payment, so stop here rather than pretending.
+        toast.error(
+          'Pembayaran belum tersedia saat ini. Silakan hubungi administrator.'
+        );
+        setLoading(null);
+        return;
       }
+
+      // Open the Midtrans Snap payment popup
+      const snapJsUrl = result.isProduction
+        ? 'https://app.midtrans.com/snap/snap.js'
+        : 'https://app.sandbox.midtrans.com/snap/snap.js';
+
+      const script = document.createElement('script');
+      script.src = snapJsUrl;
+      script.setAttribute(
+        'data-client-key',
+        process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ?? ''
+      );
+      script.onload = () => {
+        // @ts-expect-error — Midtrans Snap injected globally
+        window.snap?.pay(result.snapToken, {
+          // The server re-checks the transaction with Midtrans before granting
+          // anything, so this callback only triggers that verification.
+          onSuccess: async () => {
+            try {
+              await confirmPayment.mutateAsync({ paymentId: result.paymentId });
+            } catch {
+              toast.error(
+                'Pembayaran diterima, namun aktivasi tertunda. Paket akan aktif otomatis dalam beberapa saat.'
+              );
+            } finally {
+              setLoading(null);
+            }
+          },
+          onPending: () => {
+            toast.info('Menunggu pembayaran...');
+            setLoading(null);
+          },
+          onError: () => {
+            toast.error('Pembayaran gagal');
+            setLoading(null);
+          },
+          onClose: () => setLoading(null),
+        });
+      };
+      script.onerror = () => {
+        toast.error('Gagal memuat halaman pembayaran');
+        setLoading(null);
+      };
+      document.head.appendChild(script);
     } catch {
       toast.error('Gagal memproses pembayaran');
-    } finally {
       setLoading(null);
     }
   };

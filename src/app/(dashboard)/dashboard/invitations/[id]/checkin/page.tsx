@@ -9,6 +9,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useFeature, FeatureLocked } from '@/components/dashboard/feature-gate';
 
 type CheckinResult = {
   success: boolean;
@@ -18,6 +19,7 @@ type CheckinResult = {
 
 export default function CheckinPage() {
   const { id } = useParams<{ id: string }>();
+  const hasQrCheckin = useFeature('hasQrCheckin');
   const [manualCode, setManualCode] = useState('');
   const [result, setResult] = useState<CheckinResult>(null);
   const [scanning, setScanning] = useState(false);
@@ -25,7 +27,7 @@ export default function CheckinPage() {
 
   const { data: stats, refetch: refetchStats } = trpc.checkin.getCheckinStats.useQuery(
     { invitationId: id },
-    { enabled: !!id, refetchInterval: 5000 }
+    { enabled: !!id && hasQrCheckin === true, refetchInterval: 5000 }
   );
   const verify = trpc.checkin.verifyGuest.useMutation({
     onSuccess: (data) => {
@@ -80,6 +82,18 @@ export default function CheckinPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanning]);
+
+  if (hasQrCheckin === false) {
+    return (
+      <div className="p-6">
+        <FeatureLocked
+          title="QR Check-in belum tersedia"
+          description="Scan QR undangan tamu saat hari-H untuk mencatat kehadiran secara otomatis."
+          requiredPlan="Business"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">

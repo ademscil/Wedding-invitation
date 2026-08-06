@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { InvitationCard } from '@/components/dashboard/invitation-card';
+import { QuotaBanner } from '@/components/dashboard/quota-banner';
+import { VerificationBanner } from '@/components/dashboard/verification-banner';
 import { FloatingGem } from '@/components/3d/floating-gem';
 
 export default function DashboardPage() {
@@ -36,6 +38,11 @@ export default function DashboardPage() {
           </Button>
         </Link>
       </div>
+
+      <VerificationBanner />
+
+      {/* Plan, quota and expiry */}
+      <QuotaBanner />
 
       {/* Stats */}
       {isLoading ? (

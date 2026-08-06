@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
+import { useFeature, FeatureLocked } from '@/components/dashboard/feature-gate';
 
 function StatCard({
   icon: Icon,
@@ -49,6 +50,8 @@ function StatCard({
 }
 
 export default function AnalyticsPage() {
+  const hasAnalytics = useFeature('hasAnalytics');
+
   const { id } = useParams<{ id: string }>();
   const { data: stats, isLoading } = trpc.analytics.getStats.useQuery(
     { invitationId: id },
@@ -90,7 +93,19 @@ export default function AnalyticsPage() {
     : [];
 
   if (isLoading) {
+    if (hasAnalytics === false) {
     return (
+      <div className="p-6">
+        <FeatureLocked
+          title="Statistik belum tersedia"
+          description="Lihat jumlah kunjungan, RSVP, dan ucapan pada undangan Anda secara real-time."
+          requiredPlan="Starter"
+        />
+      </div>
+    );
+  }
+
+  return (
       <div className="space-y-6 p-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

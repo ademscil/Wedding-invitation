@@ -67,3 +67,23 @@ export function wishNotificationEmail(params: {
     </div>
   `;
 }
+
+export function verificationEmail(params: { name: string; url: string }) {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Verifikasi Email Anda</h2>
+      <p>Halo ${params.name},</p>
+      <p>Klik tombol di bawah untuk memverifikasi alamat email Anda di WedInvite.</p>
+      <p style="margin: 24px 0;">
+        <a href="${params.url}"
+           style="background:#8B2332;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">
+          Verifikasi Email
+        </a>
+      </p>
+      <p style="color:#666;font-size:13px;">
+        Tautan ini berlaku 24 jam. Jika Anda tidak membuat akun, abaikan email ini.
+      </p>
+      <p style="color:#999;font-size:12px;word-break:break-all;">${params.url}</p>
+    </div>
+  `;
+}

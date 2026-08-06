@@ -8,6 +8,8 @@ import { adminRouter } from './routers/admin';
 import { paymentRouter } from './routers/payment';
 import { checkinRouter } from './routers/checkin';
 import { userRouter } from './routers/user';
+import { plannerRouter } from './routers/planner';
+import { seatingRouter } from './routers/seating';
 
 export const appRouter = router({
   invitation: invitationRouter,
@@ -19,6 +21,8 @@ export const appRouter = router({
   payment: paymentRouter,
   checkin: checkinRouter,
   user: userRouter,
+  planner: plannerRouter,
+  seating: seatingRouter,
 });
 
 export type AppRouter = typeof appRouter;

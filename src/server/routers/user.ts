@@ -2,8 +2,112 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash, compare } from 'bcryptjs';
 import { router, protectedProcedure } from '../trpc';
+import { getUserLimits } from '../lib/limits';
+import { assertRateLimit } from '../lib/rate-limit';
+import {
+  createVerificationToken,
+  buildVerificationUrl,
+} from '../lib/verification';
+import { sendEmail, verificationEmail } from '@/lib/email';
 
 export const userRouter = router({
+  /**
+   * Quota snapshot for the dashboard, so plan limits are visible before a user
+   * runs into them rather than surfacing as a surprise error mid-action.
+   */
+  getQuota: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+    const { tier, limits } = await getUserLimits(ctx.prisma, userId);
+
+    const [invitationCount, nearestExpiry] = await Promise.all([
+      ctx.prisma.invitation.count({ where: { userId } }),
+      ctx.prisma.invitation.findFirst({
+        where: { userId, status: 'PUBLISHED', expiresAt: { not: null } },
+        orderBy: { expiresAt: 'asc' },
+        select: { expiresAt: true },
+      }),
+    ]);
+
+    return {
+      tier,
+      tierName: limits.name,
+      maxInvitations: limits.maxInvitations,
+      invitationCount,
+      // -1 means unlimited; surface it as null so the UI doesn't render "-1 left".
+      remainingInvitations:
+        limits.maxInvitations === -1
+          ? null
+          : Math.max(0, limits.maxInvitations - invitationCount),
+      maxGuests: limits.maxGuests,
+      maxGalleryImages: limits.maxGalleryImages,
+      maxEvents: limits.maxEvents,
+      maxBankAccounts: limits.maxBankAccounts,
+      duration: limits.duration,
+      expiresAt: nearestExpiry?.expiresAt ?? null,
+      // Mirrors the server-side gates so the UI can offer an upgrade path
+      // instead of letting the user click into a FORBIDDEN error.
+      features: {
+        hasLoveStory: limits.hasLoveStory,
+        hasCustomMusic: limits.hasCustomMusic,
+        hasCustomDomain: limits.hasCustomDomain,
+        hasAnalytics: limits.hasAnalytics,
+        hasBroadcast: limits.hasBroadcast,
+        hasExport: limits.hasExport,
+        hasQrCheckin: limits.hasQrCheckin,
+        hasEventPlanner: limits.hasEventPlanner,
+        hasWatermark: limits.hasWatermark,
+      },
+    };
+  }),
+
+  getVerificationStatus: protectedProcedure.query(async ({ ctx }) => {
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { email: true, emailVerified: true },
+    });
+
+    return {
+      email: user?.email ?? null,
+      isVerified: !!user?.emailVerified,
+    };
+  }),
+
+  sendVerificationEmail: protectedProcedure.mutation(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+
+    // Sending mail costs money and can be used to spam an address, so throttle
+    // per account rather than per IP.
+    assertRateLimit(
+      `verify-email:${userId}`,
+      { limit: 3, windowMs: 15 * 60_000 },
+      'Terlalu banyak permintaan verifikasi.'
+    );
+
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true, emailVerified: true },
+    });
+
+    if (!user) throw new TRPCError({ code: 'NOT_FOUND' });
+
+    if (user.emailVerified) {
+      return { sent: false, alreadyVerified: true };
+    }
+
+    const token = await createVerificationToken(ctx.prisma, user.email);
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Verifikasi email WedInvite Anda',
+      html: verificationEmail({
+        name: user.name ?? 'Pengguna',
+        url: buildVerificationUrl(token),
+      }),
+    });
+
+    return { sent: true, alreadyVerified: false };
+  }),
+
   getAuthMethods: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.session.user.id },

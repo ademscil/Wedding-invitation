@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { assertOwnsInvitation } from '../lib/authorize';
+import { checkRateLimit } from '../lib/rate-limit';
+import { assertFeature } from '../lib/limits';
 
 export const analyticsRouter = router({
   track: publicProcedure
@@ -18,6 +21,15 @@ export const analyticsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Tracking is fire-and-forget, so drop excess events silently rather than
+      // erroring — otherwise inflated view counts would be trivial to produce.
+      const { allowed } = checkRateLimit(`track:${ctx.ip}:${input.invitationSlug}`, {
+        limit: 30,
+        windowMs: 60_000,
+      });
+
+      if (!allowed) return { success: false };
+
       const invitation = await ctx.prisma.invitation.findUnique({
         where: { slug: input.invitationSlug },
       });
@@ -38,6 +50,13 @@ export const analyticsRouter = router({
   getStats: protectedProcedure
     .input(z.object({ invitationId: z.string() }))
     .query(async ({ ctx, input }) => {
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
+      await assertFeature(ctx.prisma, ctx.session.user.id, 'hasAnalytics');
+
       const [totalViews, totalRsvps, totalWishes, totalGiftClicks] =
         await Promise.all([
           ctx.prisma.analyticsEvent.count({

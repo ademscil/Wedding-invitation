@@ -25,17 +25,26 @@ const featureLabels: {
   label: string;
   type: 'number' | 'boolean';
   field: keyof (typeof SUBSCRIPTION_TIERS)['FREE'];
+  /** Listed on the roadmap but not shipped yet — never rendered as included. */
+  comingSoon?: boolean;
 }[] = [
   { key: 'invitations', label: 'Undangan', type: 'number', field: 'maxInvitations' },
   { key: 'guests', label: 'Tamu', type: 'number', field: 'maxGuests' },
   { key: 'gallery', label: 'Foto galeri', type: 'number', field: 'maxGalleryImages' },
   { key: 'love', label: 'Love Story', type: 'boolean', field: 'hasLoveStory' },
   { key: 'music', label: 'Musik Kustom', type: 'boolean', field: 'hasCustomMusic' },
-  { key: 'domain', label: 'Domain Kustom', type: 'boolean', field: 'hasCustomDomain' },
+  {
+    key: 'domain',
+    label: 'Domain Kustom',
+    type: 'boolean',
+    field: 'hasCustomDomain',
+    comingSoon: true,
+  },
   { key: 'analytics', label: 'Analitik', type: 'boolean', field: 'hasAnalytics' },
   { key: 'broadcast', label: 'Broadcast', type: 'boolean', field: 'hasBroadcast' },
   { key: 'export', label: 'Export Data', type: 'boolean', field: 'hasExport' },
   { key: 'qr', label: 'QR Check-in', type: 'boolean', field: 'hasQrCheckin' },
+  { key: 'planner', label: 'Event Planner', type: 'boolean', field: 'hasEventPlanner' },
 ];
 
 export function PricingSection() {
@@ -94,7 +103,13 @@ export function PricingSection() {
                 <ul className="mt-6 flex-1 space-y-3">
                   {featureLabels.map((feat) => {
                     const val = tier[feat.field];
-                    const enabled = feat.type === 'boolean' ? val : true;
+                    // A not-yet-shipped feature is never shown as included,
+                    // whatever the tier config says.
+                    const enabled = feat.comingSoon
+                      ? false
+                      : feat.type === 'boolean'
+                        ? val
+                        : true;
 
                     return (
                       <li key={feat.key} className="flex items-start gap-2 text-sm">
@@ -111,6 +126,11 @@ export function PricingSection() {
                           {feat.type === 'number'
                             ? `${formatLimit(val as number)} ${feat.label}`
                             : feat.label}
+                          {feat.comingSoon && (
+                            <em className="ml-1 not-italic text-xs text-primary-400">
+                              (segera hadir)
+                            </em>
+                          )}
                         </span>
                       </li>
                     );

@@ -2,6 +2,22 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { nanoid } from 'nanoid';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { assertOwnsInvitation } from '../lib/authorize';
+import {
+  assertCanCreateInvitation,
+  assertCanUseTemplate,
+  assertContentWithinLimits,
+  assertSettingsWithinLimits,
+  getUserLimits,
+} from '../lib/limits';
+import {
+  assertSlugAvailable,
+  assertValidSlug,
+  buildUniqueSlug,
+  isReservedSlug,
+  slugify,
+  SLUG_PATTERN,
+} from '../lib/slug';
 
 export const invitationRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -24,8 +40,8 @@ export const invitationRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const invitation = await ctx.prisma.invitation.findUnique({
-        where: { id: input.id },
+      const invitation = await ctx.prisma.invitation.findFirst({
+        where: { id: input.id, userId: ctx.session.user.id },
         include: {
           template: true,
           guests: { orderBy: { createdAt: 'desc' } },
@@ -40,7 +56,7 @@ export const invitationRouter = router({
         },
       });
 
-      if (!invitation || invitation.userId !== ctx.session.user.id) {
+      if (!invitation) {
         throw new TRPCError({ code: 'NOT_FOUND' });
       }
 
@@ -65,6 +81,15 @@ export const invitationRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND' });
       }
 
+      // The active window is what the plan actually sold; past it the public
+      // page stops resolving even though the row is still PUBLISHED.
+      if (invitation.expiresAt && invitation.expiresAt.getTime() < Date.now()) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Undangan ini sudah tidak aktif',
+        });
+      }
+
       return invitation;
     }),
 
@@ -78,18 +103,28 @@ export const invitationRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const slug =
-        input.slug ||
-        `${input.brideName || 'bride'}-dan-${input.groomName || 'groom'}-${nanoid(6)}`
-          .toLowerCase()
-          .replace(/[^a-z0-9-]/g, '-')
-          .replace(/-+/g, '-');
+      await assertCanCreateInvitation(ctx.prisma, ctx.session.user.id);
 
-      const existingSlug = await ctx.prisma.invitation.findUnique({
-        where: { slug },
-      });
+      if (input.templateId) {
+        await assertCanUseTemplate(
+          ctx.prisma,
+          ctx.session.user.id,
+          input.templateId
+        );
+      }
 
-      const finalSlug = existingSlug ? `${slug}-${nanoid(4)}` : slug;
+      let finalSlug: string;
+      if (input.slug) {
+        // An explicitly chosen slug must be valid and free; we don't silently
+        // rewrite it, otherwise the user ends up on a URL they didn't pick.
+        finalSlug = assertValidSlug(slugify(input.slug));
+        await assertSlugAvailable(ctx.prisma, finalSlug);
+      } else {
+        const base = slugify(
+          `${input.brideName || 'bride'}-dan-${input.groomName || 'groom'}`
+        );
+        finalSlug = await buildUniqueSlug(ctx.prisma, base, () => nanoid(6));
+      }
 
       return ctx.prisma.invitation.create({
         data: {
@@ -126,21 +161,71 @@ export const invitationRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, weddingDate, ...data } = input;
+      const { id, weddingDate, slug, ...data } = input;
 
-      const invitation = await ctx.prisma.invitation.findUnique({
-        where: { id },
-      });
+      const invitation = await assertOwnsInvitation(
+        ctx.prisma,
+        id,
+        ctx.session.user.id
+      );
 
-      if (!invitation || invitation.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: 'NOT_FOUND' });
+      if (data.templateId) {
+        await assertCanUseTemplate(
+          ctx.prisma,
+          ctx.session.user.id,
+          data.templateId
+        );
+      }
+
+      await assertContentWithinLimits(
+        ctx.prisma,
+        ctx.session.user.id,
+        {
+          events: data.events,
+          galleryImages: data.galleryImages,
+          bankAccounts: data.bankAccounts,
+          loveStory: data.loveStory,
+        },
+        invitation
+      );
+
+      await assertSettingsWithinLimits(
+        ctx.prisma,
+        ctx.session.user.id,
+        data.settings,
+        invitation.settings
+      );
+
+      // Changing the slug changes the public URL, so validate it and make sure
+      // it isn't already taken instead of letting the DB throw a raw P2002.
+      // Slugs created before validation existed may not survive slugify(), so
+      // only touch the column when the caller actually asked for a new value —
+      // resaving a form must never silently rewrite a URL already shared out.
+      let nextSlug: string | undefined;
+      if (slug !== undefined && slug !== invitation.slug) {
+        nextSlug = assertValidSlug(slugify(slug));
+        if (nextSlug !== invitation.slug) {
+          await assertSlugAvailable(ctx.prisma, nextSlug, id);
+        }
+      }
+
+      let parsedWeddingDate: Date | undefined;
+      if (weddingDate) {
+        parsedWeddingDate = new Date(weddingDate);
+        if (Number.isNaN(parsedWeddingDate.getTime())) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Tanggal pernikahan tidak valid',
+          });
+        }
       }
 
       return ctx.prisma.invitation.update({
         where: { id },
         data: {
           ...data,
-          weddingDate: weddingDate ? new Date(weddingDate) : undefined,
+          ...(nextSlug !== undefined && { slug: nextSlug }),
+          weddingDate: parsedWeddingDate,
         },
       });
     }),
@@ -153,30 +238,35 @@ export const invitationRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const invitation = await ctx.prisma.invitation.findUnique({
-        where: { id: input.id },
-      });
+      const invitation = await assertOwnsInvitation(
+        ctx.prisma,
+        input.id,
+        ctx.session.user.id
+      );
 
-      if (!invitation || invitation.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: 'NOT_FOUND' });
+      // Start the paid-for active window at first publish. Re-publishing later
+      // keeps the original expiry so the window can't be reset for free.
+      let expiresAt: Date | undefined;
+      if (input.status === 'PUBLISHED' && !invitation.expiresAt) {
+        const { limits } = await getUserLimits(ctx.prisma, ctx.session.user.id);
+        const stamp = new Date();
+        stamp.setMonth(stamp.getMonth() + limits.durationMonths);
+        expiresAt = stamp;
       }
 
       return ctx.prisma.invitation.update({
         where: { id: input.id },
-        data: { status: input.status },
+        data: {
+          status: input.status,
+          ...(expiresAt && { expiresAt }),
+        },
       });
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const invitation = await ctx.prisma.invitation.findUnique({
-        where: { id: input.id },
-      });
-
-      if (!invitation || invitation.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: 'NOT_FOUND' });
-      }
+      await assertOwnsInvitation(ctx.prisma, input.id, ctx.session.user.id);
 
       return ctx.prisma.invitation.delete({ where: { id: input.id } });
     }),
@@ -184,9 +274,17 @@ export const invitationRouter = router({
   checkSlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
+      const slug = slugify(input.slug);
+
+      if (slug.length < 3 || !SLUG_PATTERN.test(slug) || isReservedSlug(slug)) {
+        return { available: false, slug };
+      }
+
       const existing = await ctx.prisma.invitation.findUnique({
-        where: { slug: input.slug },
+        where: { slug },
+        select: { id: true },
       });
-      return { available: !existing };
+
+      return { available: !existing, slug };
     }),
 });

@@ -1,70 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import crypto from 'crypto';
+import {
+  activateSubscription,
+  isSettled,
+  planFromAmount,
+  verifyMidtransSignature,
+  type MidtransStatus,
+} from '@/lib/payment';
 
 // Midtrans payment notification webhook
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { order_id, transaction_status, fraud_status, signature_key, gross_amount } = body;
-
-    // Verify signature: SHA512(order_id + status_code + gross_amount + server_key)
+    const body = (await req.json()) as MidtransStatus;
     const serverKey = process.env.MIDTRANS_SERVER_KEY ?? '';
-    const statusCode = body.status_code;
-    const expectedSignature = crypto
-      .createHash('sha512')
-      .update(`${order_id}${statusCode}${gross_amount}${serverKey}`)
-      .digest('hex');
 
-    if (signature_key !== expectedSignature) {
+    // Reject outright when no server key is configured: an empty key would make
+    // the signature reproducible by anyone and let callers grant themselves plans.
+    if (!serverKey) {
+      console.error('[webhook] MIDTRANS_SERVER_KEY is not configured');
+      return NextResponse.json(
+        { message: 'Gateway not configured' },
+        { status: 503 }
+      );
+    }
+
+    if (!verifyMidtransSignature(body, serverKey)) {
       return NextResponse.json({ message: 'Invalid signature' }, { status: 401 });
     }
 
-    const isPaid =
-      transaction_status === 'capture'
-        ? fraud_status === 'accept'
-        : transaction_status === 'settlement';
+    const orderId = body.order_id;
+    if (!orderId) {
+      return NextResponse.json({ message: 'Missing order_id' }, { status: 400 });
+    }
 
     const payment = await prisma.payment.findFirst({
-      where: { gatewayReferenceId: order_id },
+      where: { gatewayReferenceId: orderId },
     });
 
     if (!payment) {
       return NextResponse.json({ message: 'Payment not found' }, { status: 404 });
     }
 
-    if (isPaid && payment.status !== 'PAID') {
-      // Determine plan from amount
-      let plan: 'STARTER' | 'PREMIUM' | 'BUSINESS' = 'STARTER';
-      if (payment.amount >= 499000) plan = 'BUSINESS';
-      else if (payment.amount >= 199000) plan = 'PREMIUM';
+    if (isSettled(body)) {
+      // Derive the plan from the amount we stored at checkout, never from the
+      // notification body, and confirm the gateway charged at least that much.
+      const plan = planFromAmount(payment.amount);
+      if (!plan) {
+        console.error(
+          `[webhook] Unrecognised amount ${payment.amount} for payment ${payment.id}`
+        );
+        return NextResponse.json({ message: 'Unknown plan' }, { status: 400 });
+      }
 
-      const expiresAt = new Date();
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      const paidAmount = Number.parseFloat(body.gross_amount ?? '0');
+      if (!Number.isFinite(paidAmount) || paidAmount < payment.amount) {
+        console.error(
+          `[webhook] Amount mismatch for ${orderId}: paid ${body.gross_amount}, expected ${payment.amount}`
+        );
+        return NextResponse.json({ message: 'Amount mismatch' }, { status: 400 });
+      }
 
-      await prisma.$transaction([
-        prisma.payment.update({
-          where: { id: payment.id },
-          data: { status: 'PAID' },
-        }),
-        prisma.user.update({
-          where: { id: payment.userId },
-          data: { subscriptionTier: plan },
-        }),
-        prisma.subscription.create({
-          data: {
-            userId: payment.userId,
-            plan,
-            status: 'ACTIVE',
-            paymentId: payment.id,
-            startsAt: new Date(),
-            expiresAt,
-          },
-        }),
-      ]);
-    } else if (['cancel', 'deny', 'expire'].includes(transaction_status)) {
-      await prisma.payment.update({
-        where: { id: payment.id },
+      // Idempotent: a replayed notification will not create a second subscription.
+      await activateSubscription(prisma, payment.id, payment.userId, plan);
+    } else if (
+      ['cancel', 'deny', 'expire', 'failure'].includes(
+        body.transaction_status ?? ''
+      )
+    ) {
+      // Never downgrade a payment that already settled.
+      await prisma.payment.updateMany({
+        where: { id: payment.id, status: { not: 'PAID' } },
         data: { status: 'FAILED' },
       });
     }
