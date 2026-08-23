@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Save,
   Loader2,
@@ -13,7 +12,11 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
-  Users,
+  ExternalLink,
+  Check,
+  AlertCircle,
+  Palette,
+  Link2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
@@ -24,55 +27,116 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { BANKS } from '@/lib/constants';
+import { InvitationTabs } from '@/components/dashboard/invitation-tabs';
+import {
+  parseEvents,
+  parseBankAccounts,
+  parseGalleryImages,
+  parseLoveStory,
+  parseSettings,
+} from '@/lib/invitation-data';
+import type {
+  BankAccount,
+  GalleryImage,
+  InvitationEvent,
+  InvitationSettings,
+  LoveStoryEntry,
+} from '@/types';
 
-interface EventItem {
-  name: string;
-  date: string;
-  time: string;
-  location: string;
-  mapUrl: string;
+/** Stable client-side id for newly added rows. */
+function newId(prefix: string): string {
+  const random =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  return `${prefix}-${random}`;
 }
 
-interface BankAccount {
-  bank: string;
-  accountName: string;
-  accountNumber: string;
-}
-
-interface LoveStoryEntry {
-  year: string;
-  title: string;
-  description: string;
-}
+const SECTION_TOGGLES: { key: keyof InvitationSettings; label: string }[] = [
+  { key: 'showCountdown', label: 'Hitung mundur' },
+  { key: 'showLoveStory', label: 'Love story' },
+  { key: 'showGallery', label: 'Galeri foto' },
+  { key: 'showRsvp', label: 'Form RSVP' },
+  { key: 'showGift', label: 'Amplop digital' },
+  { key: 'showGuestbook', label: 'Buku tamu' },
+  { key: 'showDressCode', label: 'Dress code' },
+  { key: 'showStreaming', label: 'Live streaming' },
+];
 
 function CollapsibleSection({
   title,
+  description,
   defaultOpen = false,
+  badge,
   children,
 }: {
   title: string;
+  description?: string;
   defaultOpen?: boolean;
+  badge?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+
   return (
     <Card>
       <button
         type="button"
-        className="flex w-full items-center justify-between p-6 text-left"
+        className="flex w-full items-center justify-between gap-3 p-6 text-left"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
       >
-        <h3 className="text-lg font-semibold">{title}</h3>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold">{title}</h3>
+            {badge && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {badge}
+              </span>
+            )}
+          </div>
+          {description && (
+            <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
         {open ? (
-          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+          <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" />
         ) : (
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
         )}
       </button>
-      {open && (
-        <CardContent className="border-t pt-6">{children}</CardContent>
-      )}
+      {open && <CardContent className="border-t pt-6">{children}</CardContent>}
     </Card>
+  );
+}
+
+function RepeaterItem({
+  label,
+  onRemove,
+  children,
+}: {
+  label: string;
+  onRemove: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">{label}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          onClick={onRemove}
+          aria-label={`Hapus ${label}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -85,80 +149,115 @@ export default function InvitationDetailPage() {
     { id },
     { enabled: !!id }
   );
+  const { data: templates } = trpc.template.list.useQuery();
   const utils = trpc.useUtils();
 
-  // Form state
   const [brideName, setBrideName] = useState('');
   const [groomName, setGroomName] = useState('');
   const [brideParents, setBrideParents] = useState('');
   const [groomParents, setGroomParents] = useState('');
+  const [bridePhoto, setBridePhoto] = useState('');
+  const [groomPhoto, setGroomPhoto] = useState('');
   const [weddingDate, setWeddingDate] = useState('');
   const [quote, setQuote] = useState('');
   const [dressCode, setDressCode] = useState('');
   const [streamingUrl, setStreamingUrl] = useState('');
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [slug, setSlug] = useState('');
+  const [templateId, setTemplateId] = useState('');
+  const [events, setEvents] = useState<InvitationEvent[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [loveStory, setLoveStory] = useState<LoveStoryEntry[]>([]);
+  const [settings, setSettings] = useState<InvitationSettings>({});
+  const [isDirty, setIsDirty] = useState(false);
 
-  // Populate form when data loads
+  // Hydrate the form once the invitation arrives.
   useEffect(() => {
-    if (invitation) {
-      setBrideName(invitation.brideName || '');
-      setGroomName(invitation.groomName || '');
-      setBrideParents(invitation.brideParents || '');
-      setGroomParents(invitation.groomParents || '');
-      setWeddingDate(
-        invitation.weddingDate
-          ? new Date(invitation.weddingDate).toISOString().split('T')[0]
-          : ''
-      );
-      setQuote(invitation.quote || '');
-      setDressCode(invitation.dressCode || '');
-      setStreamingUrl(invitation.streamingUrl || '');
+    if (!invitation) return;
 
-      try {
-        setEvents(JSON.parse(invitation.events || '[]'));
-      } catch {
-        setEvents([]);
-      }
-      try {
-        setBankAccounts(JSON.parse(invitation.bankAccounts || '[]'));
-      } catch {
-        setBankAccounts([]);
-      }
-      try {
-        setGalleryImages(JSON.parse(invitation.galleryImages || '[]'));
-      } catch {
-        setGalleryImages([]);
-      }
-      try {
-        setLoveStory(JSON.parse(invitation.loveStory || '[]'));
-      } catch {
-        setLoveStory([]);
-      }
-    }
+    setBrideName(invitation.brideName || '');
+    setGroomName(invitation.groomName || '');
+    setBrideParents(invitation.brideParents || '');
+    setGroomParents(invitation.groomParents || '');
+    setBridePhoto(invitation.bridePhoto || '');
+    setGroomPhoto(invitation.groomPhoto || '');
+    setWeddingDate(
+      invitation.weddingDate
+        ? new Date(invitation.weddingDate).toISOString().split('T')[0]
+        : ''
+    );
+    setQuote(invitation.quote || '');
+    setDressCode(invitation.dressCode || '');
+    setStreamingUrl(invitation.streamingUrl || '');
+    setSlug(invitation.slug);
+    setTemplateId(invitation.templateId || '');
+    setEvents(parseEvents(invitation.events));
+    setBankAccounts(parseBankAccounts(invitation.bankAccounts));
+    setGalleryImages(parseGalleryImages(invitation.galleryImages));
+    setLoveStory(parseLoveStory(invitation.loveStory));
+    setSettings(parseSettings(invitation.settings));
+    setIsDirty(false);
   }, [invitation]);
+
+  // Warn before losing edits on a full page unload.
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  /** Wraps a state setter so any edit marks the form dirty. */
+  const track = useCallback(
+    <T,>(setter: React.Dispatch<React.SetStateAction<T>>) =>
+      (value: React.SetStateAction<T>) => {
+        setIsDirty(true);
+        setter(value);
+      },
+    []
+  );
 
   const updateMutation = trpc.invitation.update.useMutation({
     onSuccess: () => {
       toast.success('Undangan berhasil disimpan');
+      setIsDirty(false);
       utils.invitation.getById.invalidate({ id });
+      utils.invitation.list.invalidate();
     },
-    onError: () => {
-      toast.error('Gagal menyimpan undangan');
-    },
+    onError: (error) => toast.error(error.message || 'Gagal menyimpan undangan'),
   });
 
   const statusMutation = trpc.invitation.updateStatus.useMutation({
-    onSuccess: () => {
-      toast.success('Status undangan diperbarui');
+    onSuccess: (updated) => {
+      toast.success(
+        updated.status === 'PUBLISHED'
+          ? 'Undangan sudah tayang dan bisa dibagikan'
+          : 'Undangan dikembalikan ke draft'
+      );
       utils.invitation.getById.invalidate({ id });
+      utils.invitation.list.invalidate();
     },
-    onError: () => {
-      toast.error('Gagal mengubah status');
-    },
+    onError: (error) => toast.error(error.message || 'Gagal mengubah status'),
   });
+
+  const publicUrl = useMemo(
+    () => (typeof window !== 'undefined' ? `${window.location.origin}/${slug}` : `/${slug}`),
+    [slug]
+  );
+
+  // What still blocks publishing, mirrored from the server-side check.
+  const missingForPublish = useMemo(() => {
+    const missing: string[] = [];
+    if (!brideName.trim()) missing.push('nama mempelai wanita');
+    if (!groomName.trim()) missing.push('nama mempelai pria');
+    if (!weddingDate) missing.push('tanggal pernikahan');
+    if (events.length === 0) missing.push('minimal 1 acara');
+    return missing;
+  }, [brideName, groomName, weddingDate, events.length]);
 
   const handleSave = () => {
     updateMutation.mutate({
@@ -167,85 +266,52 @@ export default function InvitationDetailPage() {
       groomName,
       brideParents: brideParents || undefined,
       groomParents: groomParents || undefined,
+      bridePhoto: bridePhoto || undefined,
+      groomPhoto: groomPhoto || undefined,
       weddingDate: weddingDate || undefined,
       quote: quote || undefined,
       dressCode: dressCode || undefined,
       streamingUrl: streamingUrl || undefined,
+      templateId: templateId || undefined,
+      ...(invitation && slug !== invitation.slug && { slug }),
       events: JSON.stringify(events),
       bankAccounts: JSON.stringify(bankAccounts),
       galleryImages: JSON.stringify(galleryImages),
       loveStory: JSON.stringify(loveStory),
+      settings: JSON.stringify(settings),
     });
   };
 
   const handleTogglePublish = () => {
     if (!invitation) return;
-    const newStatus =
-      invitation.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
-    statusMutation.mutate({ id, status: newStatus });
+
+    if (invitation.status !== 'PUBLISHED' && isDirty) {
+      toast.error('Simpan perubahan dulu sebelum menayangkan undangan');
+      return;
+    }
+
+    statusMutation.mutate({
+      id,
+      status: invitation.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED',
+    });
   };
 
   const handleCopyLink = async () => {
-    if (!invitation) return;
-    const url = `${window.location.origin}/${invitation.slug}`;
     try {
-      await navigator.clipboard.writeText(url);
-      toast.success('Link berhasil disalin!');
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success('Link berhasil disalin');
     } catch {
       toast.error('Gagal menyalin link');
     }
   };
 
-  // Event helpers
-  const addEvent = () =>
-    setEvents([
-      ...events,
-      { name: '', date: '', time: '', location: '', mapUrl: '' },
-    ]);
-  const removeEvent = (index: number) =>
-    setEvents(events.filter((_, i) => i !== index));
-  const updateEvent = (index: number, field: keyof EventItem, value: string) =>
-    setEvents(events.map((e, i) => (i === index ? { ...e, [field]: value } : e)));
-
-  // Bank account helpers
-  const addBankAccount = () =>
-    setBankAccounts([
-      ...bankAccounts,
-      { bank: '', accountName: '', accountNumber: '' },
-    ]);
-  const removeBankAccount = (index: number) =>
-    setBankAccounts(bankAccounts.filter((_, i) => i !== index));
-  const updateBankAccount = (
-    index: number,
-    field: keyof BankAccount,
-    value: string
-  ) =>
-    setBankAccounts(
-      bankAccounts.map((b, i) => (i === index ? { ...b, [field]: value } : b))
-    );
-
-  // Gallery helpers
-  const addGalleryImage = () => setGalleryImages([...galleryImages, '']);
-  const removeGalleryImage = (index: number) =>
-    setGalleryImages(galleryImages.filter((_, i) => i !== index));
-  const updateGalleryImage = (index: number, value: string) =>
-    setGalleryImages(galleryImages.map((img, i) => (i === index ? value : img)));
-
-  // Love story helpers
-  const addLoveStoryEntry = () =>
-    setLoveStory([...loveStory, { year: '', title: '', description: '' }]);
-  const removeLoveStoryEntry = (index: number) =>
-    setLoveStory(loveStory.filter((_, i) => i !== index));
-  const updateLoveStoryEntry = (
-    index: number,
-    field: keyof LoveStoryEntry,
-    value: string
-  ) =>
-    setLoveStory(
-      loveStory.map((entry, i) =>
-        i === index ? { ...entry, [field]: value } : entry
-      )
-    );
+  const updateSetting = <K extends keyof InvitationSettings>(
+    key: K,
+    value: InvitationSettings[K]
+  ) => {
+    setIsDirty(true);
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
 
   if (isLoading) {
     return (
@@ -265,6 +331,9 @@ export default function InvitationDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <h2 className="mb-2 text-xl font-semibold">Undangan tidak ditemukan</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Undangan mungkin sudah dihapus atau bukan milik akun ini.
+        </p>
         <Button variant="outline" onClick={() => router.push('/dashboard/invitations')}>
           Kembali ke Daftar Undangan
         </Button>
@@ -272,101 +341,95 @@ export default function InvitationDetailPage() {
     );
   }
 
+  const isPublished = invitation.status === 'PUBLISHED';
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">
-            {invitation.brideName && invitation.groomName
-              ? `${invitation.brideName} & ${invitation.groomName}`
-              : 'Edit Undangan'}
+            {brideName && groomName ? `${brideName} & ${groomName}` : 'Edit Undangan'}
           </h1>
-          <Badge
-            variant={
-              invitation.status === 'PUBLISHED' ? 'success' : 'secondary'
-            }
-            className="mt-1"
-          >
-            {invitation.status}
-          </Badge>
+          <div className="mt-1 flex items-center gap-2">
+            <Badge variant={isPublished ? 'success' : 'secondary'}>
+              {isPublished ? 'Tayang' : 'Draft'}
+            </Badge>
+            {isDirty && (
+              <span className="text-xs text-amber-600">Ada perubahan belum disimpan</span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {isPublished && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-1.5 h-4 w-4" />
+                Lihat
+              </a>
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleCopyLink}>
             <Copy className="mr-1.5 h-4 w-4" />
             Salin Link
           </Button>
           <Button
-            variant={
-              invitation.status === 'PUBLISHED' ? 'outline' : 'default'
-            }
+            variant={isPublished ? 'outline' : 'default'}
             size="sm"
             onClick={handleTogglePublish}
             disabled={statusMutation.isLoading}
           >
-            {invitation.status === 'PUBLISHED' ? (
-              <>
-                <GlobeLock className="mr-1.5 h-4 w-4" />
-                Unpublish
-              </>
+            {statusMutation.isLoading ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : isPublished ? (
+              <GlobeLock className="mr-1.5 h-4 w-4" />
             ) : (
-              <>
-                <Globe className="mr-1.5 h-4 w-4" />
-                Publish
-              </>
+              <Globe className="mr-1.5 h-4 w-4" />
             )}
+            {isPublished ? 'Jadikan Draft' : 'Tayangkan'}
           </Button>
         </div>
       </div>
+
+      {/* Publish readiness */}
+      {!isPublished && missingForPublish.length > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div className="text-sm text-amber-900">
+            <p className="font-medium">Lengkapi sebelum menayangkan</p>
+            <p className="mt-0.5 text-amber-800">{missingForPublish.join(', ')}.</p>
+          </div>
+        </div>
+      )}
 
       {/* Share link */}
       <Card>
         <CardContent className="flex items-center gap-3 p-4">
           <code className="flex-1 truncate rounded bg-muted px-3 py-2 text-sm">
-            {typeof window !== 'undefined' ? window.location.origin : ''}
-            /{invitation.slug}
+            {publicUrl}
           </code>
-          <Button variant="outline" size="sm" onClick={handleCopyLink}>
+          <Button variant="outline" size="sm" onClick={handleCopyLink} aria-label="Salin link">
             <Copy className="h-4 w-4" />
           </Button>
         </CardContent>
       </Card>
 
-      {/* Tab navigation */}
-      <div className="flex gap-1 rounded-lg border bg-muted/50 p-1">
-        <Link
-          href={`/dashboard/invitations/${id}`}
-          className={cn(
-            'flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors',
-            'bg-white shadow-sm'
-          )}
-        >
-          Detail
-        </Link>
-        <Link
-          href={`/dashboard/invitations/${id}/guests`}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-4 py-2 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Users className="h-4 w-4" />
-          Tamu ({invitation._count.guests})
-        </Link>
-      </div>
+      <InvitationTabs invitationId={id} active="detail" guestCount={invitation._count.guests} />
 
-      {/* Detail Form */}
       <div className="space-y-4">
-        {/* Couple Info */}
+        {/* Couple */}
         <CollapsibleSection title="Data Mempelai" defaultOpen>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
                 label="Nama Mempelai Wanita"
                 value={brideName}
-                onChange={(e) => setBrideName(e.target.value)}
+                onChange={(e) => track(setBrideName)(e.target.value)}
               />
               <Input
                 label="Nama Mempelai Pria"
                 value={groomName}
-                onChange={(e) => setGroomName(e.target.value)}
+                onChange={(e) => track(setGroomName)(e.target.value)}
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -374,156 +437,254 @@ export default function InvitationDetailPage() {
                 label="Orang Tua Mempelai Wanita"
                 placeholder="Bapak ... & Ibu ..."
                 value={brideParents}
-                onChange={(e) => setBrideParents(e.target.value)}
+                onChange={(e) => track(setBrideParents)(e.target.value)}
               />
               <Input
                 label="Orang Tua Mempelai Pria"
                 placeholder="Bapak ... & Ibu ..."
                 value={groomParents}
-                onChange={(e) => setGroomParents(e.target.value)}
+                onChange={(e) => track(setGroomParents)(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Foto Mempelai Wanita (URL)"
+                placeholder="https://..."
+                value={bridePhoto}
+                onChange={(e) => track(setBridePhoto)(e.target.value)}
+              />
+              <Input
+                label="Foto Mempelai Pria (URL)"
+                placeholder="https://..."
+                value={groomPhoto}
+                onChange={(e) => track(setGroomPhoto)(e.target.value)}
               />
             </div>
             <Input
               label="Tanggal Pernikahan"
               type="date"
               value={weddingDate}
-              onChange={(e) => setWeddingDate(e.target.value)}
+              onChange={(e) => track(setWeddingDate)(e.target.value)}
             />
-          </div>
-        </CollapsibleSection>
-
-        {/* Quote & Details */}
-        <CollapsibleSection title="Kutipan & Detail">
-          <div className="space-y-4">
-            <Textarea
-              label="Kutipan"
-              placeholder="Dan di antara tanda-tanda kekuasaan-Nya ialah..."
-              value={quote}
-              onChange={(e) => setQuote(e.target.value)}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Dress Code"
-                placeholder="Contoh: Pastel / Formal"
-                value={dressCode}
-                onChange={(e) => setDressCode(e.target.value)}
-              />
-              <Input
-                label="Link Live Streaming"
-                placeholder="https://..."
-                value={streamingUrl}
-                onChange={(e) => setStreamingUrl(e.target.value)}
-              />
-            </div>
           </div>
         </CollapsibleSection>
 
         {/* Events */}
-        <CollapsibleSection title="Acara">
+        <CollapsibleSection
+          title="Acara"
+          description="Akad, resepsi, atau acara lain beserta lokasinya"
+          badge={`${events.length}`}
+          defaultOpen={events.length === 0}
+        >
           <div className="space-y-4">
             {events.map((event, index) => (
-              <div key={index} className="space-y-3 rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    Acara {index + 1}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => removeEvent(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+              <RepeaterItem
+                key={event.id}
+                label={event.name || `Acara ${index + 1}`}
+                onRemove={() => track(setEvents)(events.filter((_, i) => i !== index))}
+              >
                 <Input
-                  placeholder="Nama acara (Akad Nikah, Resepsi, dll)"
+                  label="Nama acara"
+                  placeholder="Akad Nikah / Resepsi"
                   value={event.name}
-                  onChange={(e) => updateEvent(index, 'name', e.target.value)}
+                  onChange={(e) =>
+                    track(setEvents)(
+                      events.map((v, i) => (i === index ? { ...v, name: e.target.value } : v))
+                    )
+                  }
                 />
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <Input
+                    label="Tanggal"
                     type="date"
                     value={event.date}
                     onChange={(e) =>
-                      updateEvent(index, 'date', e.target.value)
+                      track(setEvents)(
+                        events.map((v, i) => (i === index ? { ...v, date: e.target.value } : v))
+                      )
                     }
                   />
                   <Input
+                    label="Mulai"
                     type="time"
-                    value={event.time}
+                    value={event.startTime}
                     onChange={(e) =>
-                      updateEvent(index, 'time', e.target.value)
+                      track(setEvents)(
+                        events.map((v, i) =>
+                          i === index ? { ...v, startTime: e.target.value } : v
+                        )
+                      )
+                    }
+                  />
+                  <Input
+                    label="Selesai"
+                    type="time"
+                    value={event.endTime ?? ''}
+                    onChange={(e) =>
+                      track(setEvents)(
+                        events.map((v, i) =>
+                          i === index ? { ...v, endTime: e.target.value || undefined } : v
+                        )
+                      )
                     }
                   />
                 </div>
                 <Input
-                  placeholder="Lokasi acara"
-                  value={event.location}
+                  label="Nama tempat"
+                  placeholder="Gedung Serbaguna Melati"
+                  value={event.venue}
                   onChange={(e) =>
-                    updateEvent(index, 'location', e.target.value)
+                    track(setEvents)(
+                      events.map((v, i) => (i === index ? { ...v, venue: e.target.value } : v))
+                    )
                   }
                 />
                 <Input
-                  placeholder="Link Google Maps (opsional)"
-                  value={event.mapUrl}
+                  label="Alamat lengkap"
+                  placeholder="Jl. Mawar No. 1, Jakarta Selatan"
+                  value={event.address}
                   onChange={(e) =>
-                    updateEvent(index, 'mapUrl', e.target.value)
+                    track(setEvents)(
+                      events.map((v, i) => (i === index ? { ...v, address: e.target.value } : v))
+                    )
                   }
                 />
-              </div>
+                <Input
+                  label="Link Google Maps (opsional)"
+                  placeholder="https://maps.google.com/..."
+                  value={event.mapUrl ?? ''}
+                  onChange={(e) =>
+                    track(setEvents)(
+                      events.map((v, i) =>
+                        i === index ? { ...v, mapUrl: e.target.value || undefined } : v
+                      )
+                    )
+                  }
+                />
+              </RepeaterItem>
             ))}
-            <Button type="button" variant="outline" onClick={addEvent}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                track(setEvents)([
+                  ...events,
+                  {
+                    id: newId('event'),
+                    name: '',
+                    date: weddingDate,
+                    startTime: '',
+                    endTime: undefined,
+                    venue: '',
+                    address: '',
+                    mapUrl: undefined,
+                  },
+                ])
+              }
+            >
               <Plus className="mr-2 h-4 w-4" />
               Tambah Acara
             </Button>
           </div>
         </CollapsibleSection>
 
-        {/* Bank Accounts */}
-        <CollapsibleSection title="Rekening / Amplop Digital">
+        {/* Quote & details */}
+        <CollapsibleSection title="Kutipan & Detail">
+          <div className="space-y-4">
+            <Textarea
+              label="Kutipan"
+              placeholder="Dan di antara tanda-tanda kekuasaan-Nya ialah..."
+              value={quote}
+              onChange={(e) => track(setQuote)(e.target.value)}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Dress Code"
+                placeholder="Pastel / Formal"
+                value={dressCode}
+                onChange={(e) => track(setDressCode)(e.target.value)}
+              />
+              <Input
+                label="Link Live Streaming"
+                placeholder="https://youtube.com/..."
+                value={streamingUrl}
+                onChange={(e) => track(setStreamingUrl)(e.target.value)}
+              />
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Bank accounts */}
+        <CollapsibleSection
+          title="Rekening / Amplop Digital"
+          description="Nomor rekening yang bisa disalin tamu"
+          badge={`${bankAccounts.length}`}
+        >
           <div className="space-y-4">
             {bankAccounts.map((account, index) => (
-              <div key={index} className="space-y-3 rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    Rekening {index + 1}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => removeBankAccount(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+              <RepeaterItem
+                key={account.id}
+                label={account.bankName || `Rekening ${index + 1}`}
+                onRemove={() =>
+                  track(setBankAccounts)(bankAccounts.filter((_, i) => i !== index))
+                }
+              >
+                <div className="w-full">
+                  <label className="mb-1.5 block text-sm font-medium">Bank</label>
+                  <input
+                    list="bank-options"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    placeholder="BCA, Mandiri, GoPay, ..."
+                    value={account.bankName}
+                    onChange={(e) =>
+                      track(setBankAccounts)(
+                        bankAccounts.map((v, i) =>
+                          i === index ? { ...v, bankName: e.target.value } : v
+                        )
+                      )
+                    }
+                  />
                 </div>
                 <Input
-                  placeholder="Nama Bank (BCA, Mandiri, dll)"
-                  value={account.bank}
+                  label="Nama pemilik rekening"
+                  value={account.accountHolder}
                   onChange={(e) =>
-                    updateBankAccount(index, 'bank', e.target.value)
+                    track(setBankAccounts)(
+                      bankAccounts.map((v, i) =>
+                        i === index ? { ...v, accountHolder: e.target.value } : v
+                      )
+                    )
                   }
                 />
                 <Input
-                  placeholder="Nama Pemilik Rekening"
-                  value={account.accountName}
-                  onChange={(e) =>
-                    updateBankAccount(index, 'accountName', e.target.value)
-                  }
-                />
-                <Input
-                  placeholder="Nomor Rekening"
+                  label="Nomor rekening"
+                  inputMode="numeric"
                   value={account.accountNumber}
                   onChange={(e) =>
-                    updateBankAccount(index, 'accountNumber', e.target.value)
+                    track(setBankAccounts)(
+                      bankAccounts.map((v, i) =>
+                        i === index ? { ...v, accountNumber: e.target.value } : v
+                      )
+                    )
                   }
                 />
-              </div>
+              </RepeaterItem>
             ))}
-            <Button type="button" variant="outline" onClick={addBankAccount}>
+            <datalist id="bank-options">
+              {BANKS.map((bank) => (
+                <option key={bank.code} value={bank.name} />
+              ))}
+            </datalist>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                track(setBankAccounts)([
+                  ...bankAccounts,
+                  { id: newId('bank'), bankName: '', accountHolder: '', accountNumber: '' },
+                ])
+              }
+            >
               <Plus className="mr-2 h-4 w-4" />
               Tambah Rekening
             </Button>
@@ -531,96 +692,315 @@ export default function InvitationDetailPage() {
         </CollapsibleSection>
 
         {/* Gallery */}
-        <CollapsibleSection title="Galeri Foto">
+        <CollapsibleSection
+          title="Galeri Foto"
+          description="Tempel URL foto — bisa dari Google Drive, Imgur, atau hosting lain"
+          badge={`${galleryImages.length}`}
+        >
           <div className="space-y-4">
-            {galleryImages.map((url, index) => (
-              <div key={index} className="flex items-center gap-2">
+            {galleryImages.map((image, index) => (
+              <RepeaterItem
+                key={image.id}
+                label={`Foto ${index + 1}`}
+                onRemove={() =>
+                  track(setGalleryImages)(galleryImages.filter((_, i) => i !== index))
+                }
+              >
                 <Input
-                  placeholder="URL gambar"
-                  value={url}
-                  onChange={(e) => updateGalleryImage(index, e.target.value)}
-                  className="flex-1"
+                  label="URL gambar"
+                  placeholder="https://..."
+                  value={image.url}
+                  onChange={(e) =>
+                    track(setGalleryImages)(
+                      galleryImages.map((v, i) =>
+                        i === index ? { ...v, url: e.target.value } : v
+                      )
+                    )
+                  }
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive"
-                  onClick={() => removeGalleryImage(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+                <Input
+                  label="Keterangan (opsional)"
+                  value={image.caption ?? ''}
+                  onChange={(e) =>
+                    track(setGalleryImages)(
+                      galleryImages.map((v, i) =>
+                        i === index ? { ...v, caption: e.target.value || undefined } : v
+                      )
+                    )
+                  }
+                />
+                {image.url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={image.url}
+                    alt={image.caption || `Pratinjau foto ${index + 1}`}
+                    className="h-24 w-24 rounded object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+              </RepeaterItem>
             ))}
-            <Button type="button" variant="outline" onClick={addGalleryImage}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                track(setGalleryImages)([
+                  ...galleryImages,
+                  { id: newId('image'), url: '', caption: undefined },
+                ])
+              }
+            >
               <Plus className="mr-2 h-4 w-4" />
               Tambah Foto
             </Button>
           </div>
         </CollapsibleSection>
 
-        {/* Love Story */}
-        <CollapsibleSection title="Love Story">
+        {/* Love story */}
+        <CollapsibleSection
+          title="Love Story"
+          description="Perjalanan kisah kalian dalam bentuk timeline"
+          badge={`${loveStory.length}`}
+        >
           <div className="space-y-4">
             {loveStory.map((entry, index) => (
-              <div key={index} className="space-y-3 rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    Cerita {index + 1}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => removeLoveStoryEntry(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+              <RepeaterItem
+                key={entry.id}
+                label={entry.title || `Cerita ${index + 1}`}
+                onRemove={() => track(setLoveStory)(loveStory.filter((_, i) => i !== index))}
+              >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Input
-                    placeholder="Tahun"
+                    label="Tahun"
+                    placeholder="2021"
                     value={entry.year}
                     onChange={(e) =>
-                      updateLoveStoryEntry(index, 'year', e.target.value)
+                      track(setLoveStory)(
+                        loveStory.map((v, i) =>
+                          i === index ? { ...v, year: e.target.value } : v
+                        )
+                      )
                     }
                   />
                   <Input
-                    placeholder="Judul"
+                    label="Judul"
+                    placeholder="Pertama Bertemu"
                     value={entry.title}
                     onChange={(e) =>
-                      updateLoveStoryEntry(index, 'title', e.target.value)
+                      track(setLoveStory)(
+                        loveStory.map((v, i) =>
+                          i === index ? { ...v, title: e.target.value } : v
+                        )
+                      )
                     }
                   />
                 </div>
                 <Textarea
-                  placeholder="Ceritakan kisah cinta kalian..."
+                  label="Cerita"
+                  placeholder="Ceritakan momen ini..."
                   value={entry.description}
                   onChange={(e) =>
-                    updateLoveStoryEntry(index, 'description', e.target.value)
+                    track(setLoveStory)(
+                      loveStory.map((v, i) =>
+                        i === index ? { ...v, description: e.target.value } : v
+                      )
+                    )
                   }
                 />
-              </div>
+                <Input
+                  label="Foto (URL, opsional)"
+                  placeholder="https://..."
+                  value={entry.image ?? ''}
+                  onChange={(e) =>
+                    track(setLoveStory)(
+                      loveStory.map((v, i) =>
+                        i === index ? { ...v, image: e.target.value || undefined } : v
+                      )
+                    )
+                  }
+                />
+              </RepeaterItem>
             ))}
             <Button
               type="button"
               variant="outline"
-              onClick={addLoveStoryEntry}
+              onClick={() =>
+                track(setLoveStory)([
+                  ...loveStory,
+                  {
+                    id: newId('story'),
+                    year: '',
+                    title: '',
+                    description: '',
+                    image: undefined,
+                  },
+                ])
+              }
             >
               <Plus className="mr-2 h-4 w-4" />
               Tambah Cerita
             </Button>
           </div>
         </CollapsibleSection>
+
+        {/* Appearance */}
+        <CollapsibleSection
+          title="Tampilan & Tema"
+          description="Template, warna, musik, dan bagian yang ditampilkan"
+        >
+          <div className="space-y-6">
+            <div>
+              <label className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+                <Palette className="h-4 w-4" />
+                Template
+              </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {templates?.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => {
+                      setIsDirty(true);
+                      setTemplateId(template.id);
+                    }}
+                    className={cn(
+                      'flex items-center justify-between rounded-lg border p-3 text-left text-sm transition-colors',
+                      templateId === template.id
+                        ? 'border-primary bg-primary/5'
+                        : 'hover:border-muted-foreground/40'
+                    )}
+                  >
+                    <span>
+                      <span className="font-medium">{template.name}</span>
+                      {template.isPremium && (
+                        <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
+                          Premium
+                        </span>
+                      )}
+                    </span>
+                    {templateId === template.id && (
+                      <Check className="h-4 w-4 shrink-0 text-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Warna Utama</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="h-10 w-14 cursor-pointer rounded border"
+                    value={settings.primaryColor || '#8B6F5C'}
+                    onChange={(e) => updateSetting('primaryColor', e.target.value)}
+                  />
+                  <Input
+                    value={settings.primaryColor || ''}
+                    placeholder="Bawaan template"
+                    onChange={(e) => updateSetting('primaryColor', e.target.value || undefined)}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Warna Aksen</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="h-10 w-14 cursor-pointer rounded border"
+                    value={settings.secondaryColor || '#D4A574'}
+                    onChange={(e) => updateSetting('secondaryColor', e.target.value)}
+                  />
+                  <Input
+                    value={settings.secondaryColor || ''}
+                    placeholder="Bawaan template"
+                    onChange={(e) =>
+                      updateSetting('secondaryColor', e.target.value || undefined)
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Input
+              label="Musik Latar (URL mp3)"
+              placeholder="https://.../lagu.mp3"
+              value={settings.musicUrl || ''}
+              onChange={(e) => updateSetting('musicUrl', e.target.value || undefined)}
+            />
+
+            <div>
+              <p className="mb-2 text-sm font-medium">Bagian yang Ditampilkan</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {SECTION_TOGGLES.map((toggle) => {
+                  const enabled = settings[toggle.key] !== false;
+                  return (
+                    <label
+                      key={toggle.key}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-input"
+                        checked={enabled}
+                        onChange={(e) =>
+                          updateSetting(
+                            toggle.key,
+                            e.target.checked ? undefined : (false as never)
+                          )
+                        }
+                      />
+                      {toggle.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Link */}
+        <CollapsibleSection
+          title="Link Undangan"
+          description="Alamat yang dibagikan ke tamu"
+        >
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium">
+                <Link2 className="h-4 w-4" />
+                Alamat undangan
+              </label>
+              <div className="flex items-center gap-1">
+                <span className="shrink-0 text-sm text-muted-foreground">
+                  {typeof window !== 'undefined' ? window.location.host : ''}/
+                </span>
+                <Input
+                  value={slug}
+                  onChange={(e) =>
+                    track(setSlug)(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+                    )
+                  }
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Huruf kecil, angka, dan tanda hubung. Mengubah link membuat link lama
+                tidak berlaku.
+              </p>
+            </div>
+          </div>
+        </CollapsibleSection>
       </div>
 
-      {/* Save Button */}
+      {/* Save bar */}
       <div className="sticky bottom-4 flex justify-end">
         <Button
           size="lg"
           onClick={handleSave}
-          disabled={updateMutation.isLoading}
+          disabled={updateMutation.isLoading || !isDirty}
           className="shadow-lg"
         >
           {updateMutation.isLoading ? (
@@ -628,7 +1008,7 @@ export default function InvitationDetailPage() {
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          Simpan Perubahan
+          {isDirty ? 'Simpan Perubahan' : 'Tersimpan'}
         </Button>
       </div>
     </div>

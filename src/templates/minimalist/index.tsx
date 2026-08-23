@@ -13,6 +13,7 @@ import { GallerySection } from '@/components/invitation/sections/gallery-section
 import { RsvpSection } from '@/components/invitation/sections/rsvp-section';
 import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
+import { ShareSection } from '@/components/invitation/sections/share-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 
 function parseSettings(settingsJson: string): InvitationSettings {
@@ -53,6 +54,7 @@ function ThinLineDivider({ color }: { color: string }) {
 export function MinimalistTemplate({
   invitation,
   guestName,
+  personalLink,
   isPreview,
 }: TemplateProps) {
   const settings = parseSettings(invitation.settings);
@@ -88,6 +90,7 @@ export function MinimalistTemplate({
           musicUrl={settings.musicUrl}
           theme={theme}
           autoPlayOnOpen={isOpened}
+        invitationSlug={invitation.slug}
         />
       )}
 
@@ -163,6 +166,7 @@ export function MinimalistTemplate({
               invitation={invitation}
               theme={theme}
               guestName={guestName}
+              personalLink={personalLink}
             />
             <ThinLineDivider color={theme.colors.secondary} />
           </>
@@ -184,6 +188,8 @@ export function MinimalistTemplate({
             guestName={guestName}
           />
         )}
+
+        <ShareSection invitation={invitation} theme={theme} />
 
         {/* Footer */}
         <footer className="px-6 pb-24 pt-16 text-center">

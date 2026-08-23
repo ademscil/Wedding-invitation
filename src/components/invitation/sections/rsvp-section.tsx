@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { Check, Send } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
+import { trpcMutate, PublicApiError } from '@/lib/public-api';
 
 interface RsvpSectionProps {
   invitation: Invitation;
@@ -21,6 +23,9 @@ export function RsvpSection({
   guestName,
   personalLink,
 }: RsvpSectionProps) {
+  // Owners can hide this section from the invitation settings.
+  const visible = isSectionVisible(parseSettings(invitation.settings), 'showRsvp');
+
   const [name, setName] = useState(guestName || '');
   const [status, setStatus] = useState<RsvpStatus | ''>('');
   const [guestCount, setGuestCount] = useState(1);
@@ -37,32 +42,28 @@ export function RsvpSection({
     setError('');
 
     try {
-      const response = await fetch('/api/trpc/guest.submitRsvp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          json: {
-            invitationSlug: invitation.slug,
-            personalLink: personalLink || undefined,
-            name: name.trim(),
-            status,
-            guestCount,
-            dietaryNotes: dietaryNotes.trim() || undefined,
-          },
-        }),
+      await trpcMutate('guest.submitRsvp', {
+        invitationSlug: invitation.slug,
+        personalLink: personalLink || undefined,
+        name: name.trim(),
+        status,
+        guestCount,
+        dietaryNotes: dietaryNotes.trim() || undefined,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to submit RSVP');
-      }
-
       setIsSubmitted(true);
-    } catch {
-      setError('Gagal mengirim RSVP. Silakan coba lagi.');
+    } catch (err) {
+      setError(
+        err instanceof PublicApiError
+          ? err.message
+          : 'Gagal mengirim RSVP. Silakan coba lagi.'
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (!visible) return null;
 
   const statusOptions: { value: RsvpStatus; label: string; emoji: string }[] = [
     { value: 'ATTENDING', label: 'Hadir', emoji: '' },

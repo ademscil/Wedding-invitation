@@ -1,95 +1,190 @@
-# WedInvite - Undangan Pernikahan Digital
+# WedInvite
 
-Platform SaaS undangan pernikahan digital yang memungkinkan pasangan membuat, mengelola, dan membagikan undangan pernikahan secara online.
+Platform SaaS undangan pernikahan digital untuk pasar Indonesia. Dibangun dengan
+Next.js 14 (App Router), TypeScript, Prisma, tRPC, dan Tailwind CSS.
 
-## Tech Stack
+---
 
-- **Framework:** Next.js 14 (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS + Framer Motion
-- **Database:** SQLite (dev) / PostgreSQL (prod) via Prisma ORM
-- **Auth:** NextAuth.js v4
-- **API:** tRPC v10
-- **State:** Zustand
-- **Forms:** React Hook Form + Zod
+## Menjalankan di Lokal
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Setup
+Prasyarat: Node.js 18.18+ dan npm.
 
 ```bash
-# Install dependencies
+# 1. Install dependensi
 npm install
 
-# Copy environment variables
-cp .env.example .env
+# 2. Siapkan environment
+cp .env.example .env.local
+```
 
-# Generate Prisma client & create database
-npx prisma generate
+Buka `.env.local` dan isi **satu nilai wajib**:
+
+```bash
+# Generate dengan: openssl rand -base64 32
+NEXTAUTH_SECRET="hasil-generate-di-sini"
+```
+
+Semua nilai lain sudah punya default yang bekerja untuk pengembangan lokal.
+
+```bash
+# 3. Buat database dan isi data awal
 npx prisma db push
+npm run db:seed
 
-# Seed database with templates
-npx prisma db seed
-
-# Start development server
+# 4. Jalankan
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000)
+Buka http://localhost:3000
 
-## Project Structure
+### Akun admin
+
+`npm run db:seed` membuat satu akun admin:
+
+| Email | Password |
+| --- | --- |
+| `admin@wedinvite.local` | `admin12345` |
+
+Login lalu buka `/admin`. Ubah kredensial ini lewat `SEED_ADMIN_EMAIL` dan
+`SEED_ADMIN_PASSWORD` sebelum seed, dan ganti passwordnya setelah login pertama.
+
+### Mode demo pembayaran
+
+`PAYMENT_DEMO_MODE="true"` (default di `.env.example`) membuat tombol upgrade
+langsung mengaktifkan paket tanpa gateway pembayaran, sehingga fitur berbayar
+bisa dicoba lokal. Mode ini **ditolak otomatis** saat `NODE_ENV=production`
+atau `MIDTRANS_IS_PRODUCTION=true`, jadi tidak bisa aktif di deployment live.
+
+---
+
+## Perintah
+
+| Perintah | Kegunaan |
+| --- | --- |
+| `npm run dev` | Server pengembangan |
+| `npm run build` | Build produksi |
+| `npm run start` | Jalankan hasil build |
+| `npm run lint` | ESLint |
+| `npm run type-check` | Pengecekan tipe TypeScript |
+| `npm run test` | Unit test (Vitest) |
+| `npm run db:push` | Terapkan skema ke database |
+| `npm run db:seed` | Isi template + akun admin |
+| `npm run db:studio` | Prisma Studio |
+
+---
+
+## Struktur
 
 ```
 src/
-  app/              # Next.js App Router pages
-    (marketing)/    # Landing page & pricing
-    (auth)/         # Login & register
-    (dashboard)/    # User dashboard
-    (invitation)/   # Public invitation pages
-    api/            # API routes (auth, tRPC)
-  components/       # React components
-    ui/             # Base UI components
-    marketing/      # Landing page components
-    dashboard/      # Dashboard components
-    invitation/     # Invitation sections
-  templates/        # Wedding invitation templates
-  server/           # tRPC server & routers
-  lib/              # Utilities, auth, validation
-  hooks/            # Custom React hooks
-  stores/           # Zustand state stores
-  types/            # TypeScript types
+  app/
+    (marketing)/      Landing, harga
+    (auth)/           Login, register
+    (dashboard)/      Area pengguna
+    (admin)/          Back-office admin
+    (invitation)/
+      [slug]/                    Halaman undangan publik
+      [slug]/to/[guestSlug]/     Link personal per tamu
+    api/
+      trpc/[trpc]/    Endpoint tRPC
+      webhooks/payment/          Notifikasi Midtrans
+  components/
+    ui/               Komponen dasar
+    invitation/sections/         Bagian undangan (cover, RSVP, galeri, dll)
+    dashboard/        Komponen dashboard
+  server/
+    trpc.ts           Setup tRPC + helper otorisasi
+    routers/          Router per domain
+  templates/          10 template undangan
+  lib/
+    subscription.ts   Feature gating per paket
+    invitation-data.ts Parser kolom JSON undangan
+    payment.ts        Integrasi Midtrans
+    guest-utils.ts    Import/export tamu, QR, WhatsApp
 prisma/
-  schema.prisma     # Database schema
-  seed.ts           # Template seed data
+  schema.prisma       Skema database
+  seed.ts             Data awal
 ```
 
-## Available Scripts
+---
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm run lint` | Run ESLint |
-| `npm run db:generate` | Generate Prisma client |
-| `npm run db:push` | Push schema to database |
-| `npm run db:seed` | Seed database |
-| `npm run db:studio` | Open Prisma Studio |
-| `npm run type-check` | TypeScript type check |
+## Cara Kerja
 
-## Features
+### Undangan
 
-- Multiple premium wedding invitation templates
-- RSVP management with guest tracking
-- Digital envelope (bank transfer details)
-- Photo gallery & love story timeline
-- Countdown timer
-- Guestbook / wishes
-- Background music
-- WhatsApp sharing with OG preview
-- Analytics dashboard
-- Multi-tier subscription (Free, Starter, Premium, Business)
+Data yang bentuknya bervariasi (acara, rekening, galeri, love story, pengaturan)
+disimpan sebagai kolom JSON di tabel `Invitation`. Semua pembacaan melewati
+`src/lib/invitation-data.ts`, yang menormalkan bentuk lama maupun baru sehingga
+undangan yang dibuat sebelum perubahan skema tetap tampil benar.
+
+### Link personal tamu
+
+Setiap tamu punya `personalLink` unik. URL-nya:
+
+```
+https://domain.com/{slug-undangan}/to/{personalLink}
+```
+
+Membuka link ini menyapa tamu dengan namanya, mencatat waktu buka pertama, dan
+mengaitkan RSVP ke record tamu tersebut. Bentuk lama `?to={personalLink}` masih
+didukung. QR code, tombol WhatsApp, dan salin-link semuanya memakai URL yang
+sama lewat `buildGuestUrl()`.
+
+### Paket langganan
+
+Batas per paket didefinisikan di `src/lib/constants.ts` dan **ditegakkan di
+server** melalui `src/lib/subscription.ts` — `assertQuota()` untuk batas jumlah
+dan `assertFeature()` untuk fitur. Tier selalu dibaca dari database, tidak dari
+JWT, sehingga perubahan paket langsung berlaku.
+
+### Pembayaran
+
+Alur upgrade memakai Midtrans Snap. Status pembayaran tidak pernah dipercaya
+dari klien: `confirmPayment` memverifikasi ulang ke API Midtrans, dan webhook
+memvalidasi signature SHA512 serta mencocokkan nominal sebelum mengaktifkan
+paket. Paket ditentukan dari nominal yang tercatat, bukan dari input pemanggil.
+
+---
+
+## Deployment Produksi
+
+1. **Database** — ganti provider di `prisma/schema.prisma`:
+
+   ```prisma
+   datasource db {
+     provider = "postgresql"
+   }
+   ```
+
+   Lalu set `DATABASE_URL` ke connection string PostgreSQL.
+
+2. **Environment** — set `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, dan
+   `NEXT_PUBLIC_APP_URL` ke domain produksi. Pastikan `PAYMENT_DEMO_MODE`
+   tidak diset ke `true`.
+
+3. **Midtrans** — isi `MIDTRANS_SERVER_KEY`,
+   `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, dan set `MIDTRANS_IS_PRODUCTION="true"`.
+   Arahkan *Payment Notification URL* di dashboard Midtrans ke:
+
+   ```
+   https://domain-anda.com/api/webhooks/payment
+   ```
+
+4. **Google OAuth** (opsional) — isi `GOOGLE_CLIENT_ID` dan
+   `GOOGLE_CLIENT_SECRET`, dan daftarkan redirect URI
+   `https://domain-anda.com/api/auth/callback/google`.
+
+---
+
+## Yang Belum Terpasang
+
+Fitur berikut punya slot konfigurasi tapi belum terhubung ke layanan:
+
+- **Upload file** — galeri dan foto mempelai diisi dengan URL. Integrasi
+  UploadThing (`UPLOADTHING_SECRET`) belum dipasang.
+- **Email transaksional** — `RESEND_API_KEY` belum dipakai; verifikasi email
+  dan reset password belum tersedia.
+- **Custom domain** — ada di daftar fitur paket dan kolom database, tapi
+  routing domain kustom belum diimplementasikan.
+- **Thumbnail template** — `/public/templates/*.jpg` belum ada, sehingga kartu
+  template menampilkan placeholder.

@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import {
   Plus,
   Users,
@@ -19,6 +18,7 @@ import {
   QrCode,
   Copy,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
@@ -27,7 +27,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { RSVP_STATUS, GUEST_GROUPS } from '@/lib/constants';
+import { InvitationTabs } from '@/components/dashboard/invitation-tabs';
+import {
+  RSVP_STATUS,
+  GUEST_GROUPS,
+  SUBSCRIPTION_TIERS,
+  type SubscriptionTier,
+} from '@/lib/constants';
 import {
   parseGuestFile,
   exportGuestsToCsv,
@@ -35,13 +41,21 @@ import {
   generateWhatsAppLink,
   generateGuestQrCode,
   downloadImportTemplate,
+  buildGuestUrl,
 } from '@/lib/guest-utils';
+
+type RsvpFilter = '' | 'ATTENDING' | 'NOT_ATTENDING' | 'MAYBE' | 'PENDING';
+
+const UPGRADE_EXPORT_MESSAGE =
+  'Export data tamu tersedia mulai paket Premium. Upgrade untuk membuka fitur ini.';
+const UPGRADE_BROADCAST_MESSAGE =
+  'Broadcast WhatsApp tersedia mulai paket Premium. Upgrade untuk membuka fitur ini.';
 
 export default function GuestsPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<RsvpFilter>('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showQrModal, setShowQrModal] = useState<{ name: string; qr: string } | null>(null);
@@ -57,6 +71,11 @@ export default function GuestsPage() {
     { id },
     { enabled: !!id }
   );
+
+  const { data: subscription } = trpc.payment.getSubscription.useQuery();
+  const tier = (subscription?.tier ?? 'FREE') as SubscriptionTier;
+  const canExport = SUBSCRIPTION_TIERS[tier]?.hasExport ?? false;
+  const canBroadcast = SUBSCRIPTION_TIERS[tier]?.hasBroadcast ?? false;
 
   const { data: guests, isLoading: guestsLoading } = trpc.guest.list.useQuery(
     { invitationId: id, status: statusFilter || undefined },
@@ -80,7 +99,7 @@ export default function GuestsPage() {
       setNewGuestPhone('');
       setNewGuestGroup('');
     },
-    onError: () => toast.error('Gagal menambahkan tamu'),
+    onError: (error) => toast.error(error.message || 'Gagal menambahkan tamu'),
   });
 
   const createManyMutation = trpc.guest.createMany.useMutation({
@@ -92,7 +111,7 @@ export default function GuestsPage() {
       setImportFile(null);
       setImportPreview([]);
     },
-    onError: () => toast.error('Gagal mengimpor tamu'),
+    onError: (error) => toast.error(error.message || 'Gagal mengimpor tamu'),
   });
 
   const deleteMutation = trpc.guest.delete.useMutation({
@@ -101,7 +120,7 @@ export default function GuestsPage() {
       utils.guest.list.invalidate({ invitationId: id });
       utils.guest.getStats.invalidate({ invitationId: id });
     },
-    onError: () => toast.error('Gagal menghapus tamu'),
+    onError: (error) => toast.error(error.message || 'Gagal menghapus tamu'),
   });
 
   const handleAddGuest = (e: React.FormEvent) => {
@@ -153,6 +172,7 @@ export default function GuestsPage() {
   };
 
   const handleExportCsv = () => {
+    if (!canExport) return toast.error(UPGRADE_EXPORT_MESSAGE);
     if (!guests?.length) return toast.error('Tidak ada tamu untuk diekspor');
     exportGuestsToCsv(
       guests.map((g) => ({
@@ -171,6 +191,7 @@ export default function GuestsPage() {
   };
 
   const handleExportExcel = () => {
+    if (!canExport) return toast.error(UPGRADE_EXPORT_MESSAGE);
     if (!guests?.length) return toast.error('Tidak ada tamu untuk diekspor');
     exportGuestsToExcel(
       guests.map((g) => ({
@@ -189,36 +210,47 @@ export default function GuestsPage() {
   };
 
   const handleWhatsApp = (guestName: string, phone: string, personalLink: string) => {
+    if (!canBroadcast) return toast.error(UPGRADE_BROADCAST_MESSAGE);
     if (!phone) return toast.error('Nomor HP tamu tidak tersedia');
-    const baseUrl = window.location.origin;
-    const invitationUrl = `${baseUrl}/${invitation?.slug}/to/${personalLink}`;
+    if (!invitation) return;
+
     const link = generateWhatsAppLink(
       guestName,
       phone,
-      invitationUrl,
-      invitation?.brideName || 'Mempelai Wanita',
-      invitation?.groomName || 'Mempelai Pria'
+      buildGuestUrl(window.location.origin, invitation.slug, personalLink),
+      invitation.brideName || 'Mempelai Wanita',
+      invitation.groomName || 'Mempelai Pria'
     );
-    window.open(link, '_blank');
+    window.open(link, '_blank', 'noopener,noreferrer');
   };
 
   const handleShowQr = async (guestName: string, personalLink: string) => {
+    if (!invitation) return;
     try {
-      const baseUrl = window.location.origin;
-      const qrDataUrl = await generateGuestQrCode(personalLink, `${baseUrl}/${invitation?.slug}`);
+      const qrDataUrl = await generateGuestQrCode(
+        personalLink,
+        window.location.origin,
+        invitation.slug
+      );
       setShowQrModal({ name: guestName, qr: qrDataUrl });
     } catch {
       toast.error('Gagal membuat QR code');
     }
   };
 
-  const handleCopyLink = (personalLink: string) => {
-    const baseUrl = window.location.origin;
-    const url = `${baseUrl}/${invitation?.slug}/to/${personalLink}`;
-    navigator.clipboard.writeText(url).then(() => toast.success('Link disalin'));
+  const handleCopyLink = async (personalLink: string) => {
+    if (!invitation) return;
+    try {
+      await navigator.clipboard.writeText(
+        buildGuestUrl(window.location.origin, invitation.slug, personalLink)
+      );
+      toast.success('Link personal disalin');
+    } catch {
+      toast.error('Gagal menyalin link');
+    }
   };
 
-  const statusFilters = [
+  const statusFilters: { value: RsvpFilter; label: string; icon: typeof Users }[] = [
     { value: '', label: 'Semua', icon: Users },
     { value: 'ATTENDING', label: 'Hadir', icon: UserCheck },
     { value: 'NOT_ATTENDING', label: 'Tidak Hadir', icon: UserX },
@@ -243,12 +275,32 @@ export default function GuestsPage() {
             <Upload className="mr-1.5 h-4 w-4" />
             Import
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>
-            <Download className="mr-1.5 h-4 w-4" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            title={canExport ? 'Export ke CSV' : UPGRADE_EXPORT_MESSAGE}
+            className={cn(!canExport && 'opacity-60')}
+          >
+            {canExport ? (
+              <Download className="mr-1.5 h-4 w-4" />
+            ) : (
+              <Lock className="mr-1.5 h-4 w-4" />
+            )}
             CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel}>
-            <Download className="mr-1.5 h-4 w-4" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            title={canExport ? 'Export ke Excel' : UPGRADE_EXPORT_MESSAGE}
+            className={cn(!canExport && 'opacity-60')}
+          >
+            {canExport ? (
+              <Download className="mr-1.5 h-4 w-4" />
+            ) : (
+              <Lock className="mr-1.5 h-4 w-4" />
+            )}
             Excel
           </Button>
           <Button onClick={() => setShowAddDialog(true)}>
@@ -258,22 +310,7 @@ export default function GuestsPage() {
         </div>
       </div>
 
-      {/* Tab navigation */}
-      <div className="flex gap-1 rounded-lg border bg-muted/50 p-1">
-        <Link
-          href={`/dashboard/invitations/${id}`}
-          className="flex-1 rounded-md px-4 py-2 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Detail
-        </Link>
-        <Link
-          href={`/dashboard/invitations/${id}/guests`}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-white px-4 py-2 text-center text-sm font-medium shadow-sm transition-colors"
-        >
-          <Users className="h-4 w-4" />
-          Tamu
-        </Link>
-      </div>
+      <InvitationTabs invitationId={id} active="guests" />
 
       {/* Stats Bar */}
       {statsLoading ? (
@@ -381,8 +418,15 @@ export default function GuestsPage() {
                           {guest.phone && (
                             <button
                               onClick={() => handleWhatsApp(guest.name, guest.phone!, guest.personalLink)}
-                              className="rounded p-1 text-green-600 hover:bg-green-50"
-                              title="Kirim via WhatsApp"
+                              className={cn(
+                                'rounded p-1 hover:bg-green-50',
+                                canBroadcast ? 'text-green-600' : 'text-muted-foreground'
+                              )}
+                              title={
+                                canBroadcast
+                                  ? 'Kirim undangan via WhatsApp'
+                                  : UPGRADE_BROADCAST_MESSAGE
+                              }
                             >
                               <MessageCircle className="h-4 w-4" />
                             </button>

@@ -11,6 +11,7 @@ import { GallerySection } from '@/components/invitation/sections/gallery-section
 import { RsvpSection } from '@/components/invitation/sections/rsvp-section';
 import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
+import { ShareSection } from '@/components/invitation/sections/share-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { CoverSection } from '@/components/invitation/sections/cover-section';
 
@@ -54,7 +55,8 @@ function ArabicOrnament({ color }: { color: string }) {
   );
 }
 
-export function IslamicTemplate({ invitation, guestName, isPreview }: TemplateProps) {
+export function IslamicTemplate({ invitation, guestName,
+  personalLink, isPreview }: TemplateProps) {
   const settings = parseSettings(invitation.settings);
   const [isOpened, setIsOpened] = useState(isPreview || false);
 
@@ -79,7 +81,8 @@ export function IslamicTemplate({ invitation, guestName, isPreview }: TemplatePr
       )}
 
       {settings.musicUrl && (
-        <MusicPlayer musicUrl={settings.musicUrl} theme={theme} autoPlayOnOpen={isOpened} />
+        <MusicPlayer musicUrl={settings.musicUrl} theme={theme} autoPlayOnOpen={isOpened} invitationSlug={invitation.slug}
+        />
       )}
 
       <div className={`transition-opacity duration-1000 ${isOpened ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
@@ -145,7 +148,12 @@ export function IslamicTemplate({ invitation, guestName, isPreview }: TemplatePr
 
         {settings.showRsvp !== false && (
           <>
-            <RsvpSection invitation={invitation} theme={theme} guestName={guestName} />
+            <RsvpSection
+              invitation={invitation}
+              theme={theme}
+              guestName={guestName}
+              personalLink={personalLink}
+            />
             <ArabicOrnament color={theme.colors.secondary} />
           </>
         )}
@@ -162,6 +170,8 @@ export function IslamicTemplate({ invitation, guestName, isPreview }: TemplatePr
         {settings.showGuestbook !== false && (
           <WishesSection invitation={invitation} theme={theme} guestName={guestName} />
         )}
+
+        <ShareSection invitation={invitation} theme={theme} />
 
         <footer className="px-6 pb-24 pt-12 text-center" style={{ backgroundColor: theme.colors.primary }}>
           <p className="text-lg" style={{ color: theme.colors.secondary + 'CC', fontFamily: theme.fonts.body }}>

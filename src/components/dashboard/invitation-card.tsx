@@ -11,6 +11,7 @@ import {
   BarChart3,
   Calendar,
   Heart,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -51,14 +52,23 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
       toast.success('Undangan berhasil dihapus');
       utils.invitation.list.invalidate();
     },
-    onError: () => {
-      toast.error('Gagal menghapus undangan');
+    onError: (error) => toast.error(error.message || 'Gagal menghapus undangan'),
+  });
+
+  const duplicateMutation = trpc.invitation.duplicate.useMutation({
+    onSuccess: (created) => {
+      toast.success('Undangan berhasil diduplikat');
+      utils.invitation.list.invalidate();
+      router.push(`/dashboard/invitations/${created.id}`);
     },
+    onError: (error) => toast.error(error.message || 'Gagal menduplikat undangan'),
   });
 
   const statusConfig =
     INVITATION_STATUS[invitation.status as keyof typeof INVITATION_STATUS] ||
     INVITATION_STATUS.DRAFT;
+
+  const isPublished = invitation.status === 'PUBLISHED';
 
   const handleShare = async () => {
     const url = `${window.location.origin}/${invitation.slug}`;
@@ -71,9 +81,24 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
   };
 
   const handleDelete = () => {
-    if (window.confirm('Yakin ingin menghapus undangan ini?')) {
+    const warning =
+      invitation._count.guests > 0
+        ? `Undangan ini punya ${invitation._count.guests} tamu. Semua data tamu dan ucapan ikut terhapus permanen. Lanjutkan?`
+        : 'Yakin ingin menghapus undangan ini? Tindakan ini permanen.';
+
+    if (window.confirm(warning)) {
       deleteMutation.mutate({ id: invitation.id });
     }
+  };
+
+  // A draft has no public page yet, so previewing it would land on a 404.
+  const handlePreview = () => {
+    if (!isPublished) {
+      toast.info('Tayangkan undangan dulu agar bisa dibuka publik');
+      router.push(`/dashboard/invitations/${invitation.id}`);
+      return;
+    }
+    window.open(`/${invitation.slug}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -120,7 +145,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           </span>
           <span className="flex items-center gap-1">
             <BarChart3 className="h-3.5 w-3.5" />
-            {invitation._count.analyticsEvents} views
+            {invitation._count.analyticsEvents} interaksi
           </span>
         </div>
       </CardContent>
@@ -136,17 +161,27 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           <Edit className="mr-1 h-3.5 w-3.5" />
           Edit
         </Button>
+        <Button variant="ghost" size="sm" onClick={handlePreview}>
+          <Eye className="mr-1 h-3.5 w-3.5" />
+          Lihat
+        </Button>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => window.open(`/${invitation.slug}`, '_blank')}
+          onClick={handleShare}
+          disabled={!isPublished}
+          title={isPublished ? 'Salin link undangan' : 'Tayangkan dulu untuk membagikan'}
         >
-          <Eye className="mr-1 h-3.5 w-3.5" />
-          Preview
+          <Share2 className="h-3.5 w-3.5" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={handleShare}>
-          <Share2 className="mr-1 h-3.5 w-3.5" />
-          Share
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => duplicateMutation.mutate({ id: invitation.id })}
+          disabled={duplicateMutation.isLoading}
+          title="Duplikat undangan"
+        >
+          <Copy className="h-3.5 w-3.5" />
         </Button>
         <Button
           variant="ghost"
@@ -154,6 +189,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           className="ml-auto text-destructive hover:text-destructive"
           onClick={handleDelete}
           disabled={deleteMutation.isLoading}
+          title="Hapus undangan"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

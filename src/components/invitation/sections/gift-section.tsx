@@ -5,33 +5,31 @@ import { motion } from 'framer-motion';
 import { Copy, Check, Gift } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import type { BankAccount } from '@/types';
+import { parseBankAccounts } from '@/lib/invitation-data';
+import { trackEvent } from '@/lib/public-api';
 
 interface GiftSectionProps {
   invitation: Invitation;
   theme: TemplateTheme;
 }
 
-function parseBankAccounts(bankAccountsJson: string): BankAccount[] {
-  try {
-    return JSON.parse(bankAccountsJson) as BankAccount[];
-  } catch {
-    return [];
-  }
-}
-
 function BankCard({
   account,
   theme,
   index,
+  invitationSlug,
 }: {
   account: BankAccount;
   theme: TemplateTheme;
   index: number;
+  invitationSlug: string;
 }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
+    trackEvent(invitationSlug, 'GIFT_CLICK', { bank: account.bankName });
     try {
       await navigator.clipboard.writeText(account.accountNumber);
       setCopied(true);
@@ -116,9 +114,12 @@ function BankCard({
 }
 
 export function GiftSection({ invitation, theme }: GiftSectionProps) {
+  // Owners can hide this section from the invitation settings.
+  const visible = isSectionVisible(parseSettings(invitation.settings), 'showGift');
+
   const accounts = parseBankAccounts(invitation.bankAccounts);
 
-  if (accounts.length === 0) return null;
+  if (!visible || accounts.length === 0) return null;
 
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>
@@ -165,6 +166,7 @@ export function GiftSection({ invitation, theme }: GiftSectionProps) {
               account={account}
               theme={theme}
               index={index}
+              invitationSlug={invitation.slug}
             />
           ))}
         </div>

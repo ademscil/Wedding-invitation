@@ -7,6 +7,7 @@ import { analyticsRouter } from './routers/analytics';
 import { adminRouter } from './routers/admin';
 import { paymentRouter } from './routers/payment';
 import { checkinRouter } from './routers/checkin';
+import { userRouter } from './routers/user';
 
 export const appRouter = router({
   invitation: invitationRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
   admin: adminRouter,
   payment: paymentRouter,
   checkin: checkinRouter,
+  user: userRouter,
 });
 
 export type AppRouter = typeof appRouter;

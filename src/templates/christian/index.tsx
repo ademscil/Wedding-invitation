@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { TemplateProps, TemplateTheme } from '../types';
-import type { InvitationSettings } from '@/types';
+import { parseSettings } from '@/lib/invitation-data';
 import { CoverSection } from '@/components/invitation/sections/cover-section';
 import { CoupleSection } from '@/components/invitation/sections/couple-section';
 import { EventsSection } from '@/components/invitation/sections/events-section';
@@ -11,13 +11,10 @@ import { GallerySection } from '@/components/invitation/sections/gallery-section
 import { RsvpSection } from '@/components/invitation/sections/rsvp-section';
 import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
+import { ShareSection } from '@/components/invitation/sections/share-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 
-function parseSettings(s: string): InvitationSettings {
-  try { return JSON.parse(s) as InvitationSettings; } catch { return {}; }
-}
-
-const theme: TemplateTheme = {
+const christianTheme: TemplateTheme = {
   colors: {
     primary: '#4A6FA5',
     secondary: '#C9A96E',
@@ -33,7 +30,7 @@ const theme: TemplateTheme = {
   },
 };
 
-function CrossDivider() {
+function CrossDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-4 py-8">
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.secondary + '60' }} />
@@ -45,8 +42,18 @@ function CrossDivider() {
   );
 }
 
-export function ChristianTemplate({ invitation, guestName, isPreview }: TemplateProps) {
-  const settings = parseSettings(invitation.settings as string || '{}');
+export function ChristianTemplate({ invitation, guestName,
+  personalLink, isPreview }: TemplateProps) {
+  const settings = parseSettings(invitation.settings);
+
+  const theme: TemplateTheme = {
+    ...christianTheme,
+    colors: {
+      ...christianTheme.colors,
+      ...(settings.primaryColor && { primary: settings.primaryColor }),
+      ...(settings.secondaryColor && { secondary: settings.secondaryColor }),
+    },
+  };
   const [isOpened, setIsOpened] = useState(isPreview || false);
 
   return (
@@ -61,7 +68,8 @@ export function ChristianTemplate({ invitation, guestName, isPreview }: Template
       )}
 
       {settings.musicUrl && (
-        <MusicPlayer musicUrl={settings.musicUrl} theme={theme} autoPlayOnOpen={isOpened} />
+        <MusicPlayer musicUrl={settings.musicUrl} theme={theme} autoPlayOnOpen={isOpened} invitationSlug={invitation.slug}
+        />
       )}
 
       <div className={`transition-opacity duration-1000 ${isOpened ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
@@ -74,17 +82,23 @@ export function ChristianTemplate({ invitation, guestName, isPreview }: Template
         </div>
 
         <CoupleSection invitation={invitation} theme={theme} />
-        <CrossDivider />
+        <CrossDivider theme={theme} />
         <EventsSection invitation={invitation} theme={theme} />
         <CountdownSection invitation={invitation} theme={theme} />
 
         {!isPreview && (
           <>
             <GallerySection invitation={invitation} theme={theme} />
-            <CrossDivider />
-            <RsvpSection invitation={invitation} theme={theme} />
+            <CrossDivider theme={theme} />
+            <RsvpSection
+            invitation={invitation}
+            theme={theme}
+            guestName={guestName}
+            personalLink={personalLink}
+          />
             <GiftSection invitation={invitation} theme={theme} />
             <WishesSection invitation={invitation} theme={theme} />
+            <ShareSection invitation={invitation} theme={theme} />
           </>
         )}
 

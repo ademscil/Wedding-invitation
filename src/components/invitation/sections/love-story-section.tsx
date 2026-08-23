@@ -3,25 +3,21 @@
 import { motion } from 'framer-motion';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
-import type { LoveStoryEntry } from '@/types';
+import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
+import { parseLoveStory } from '@/lib/invitation-data';
 
 interface LoveStorySectionProps {
   invitation: Invitation;
   theme: TemplateTheme;
 }
 
-function parseLoveStory(loveStoryJson: string): LoveStoryEntry[] {
-  try {
-    return JSON.parse(loveStoryJson) as LoveStoryEntry[];
-  } catch {
-    return [];
-  }
-}
-
 export function LoveStorySection({ invitation, theme }: LoveStorySectionProps) {
+  // Owners can hide this section from the invitation settings.
+  const visible = isSectionVisible(parseSettings(invitation.settings), 'showLoveStory');
+
   const entries = parseLoveStory(invitation.loveStory);
 
-  if (entries.length === 0) return null;
+  if (!visible || entries.length === 0) return null;
 
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>

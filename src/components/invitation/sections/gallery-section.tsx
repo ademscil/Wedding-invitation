@@ -5,26 +5,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import type { GalleryImage } from '@/types';
+import { parseGalleryImages } from '@/lib/invitation-data';
 
 interface GallerySectionProps {
   invitation: Invitation;
   theme: TemplateTheme;
 }
 
-function parseGalleryImages(galleryJson: string): GalleryImage[] {
-  try {
-    return JSON.parse(galleryJson) as GalleryImage[];
-  } catch {
-    return [];
-  }
-}
-
 export function GallerySection({ invitation, theme }: GallerySectionProps) {
+  // Owners can hide this section from the invitation settings.
+  const visible = isSectionVisible(parseSettings(invitation.settings), 'showGallery');
+
   const images = parseGalleryImages(invitation.galleryImages);
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
-  if (images.length === 0) return null;
+  if (!visible || images.length === 0) return null;
 
   return (
     <>

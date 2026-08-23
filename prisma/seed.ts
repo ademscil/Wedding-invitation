@@ -1,10 +1,46 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import bcrypt from 'bcryptjs';
 import path from 'node:path';
 
 const dbPath = path.join(__dirname, 'dev.db');
 const adapter = new PrismaBetterSqlite3({ url: dbPath });
 const prisma = new PrismaClient({ adapter });
+
+/**
+ * Creates the initial admin account so /admin is reachable on a fresh install.
+ * Credentials come from the environment; an existing account is never
+ * overwritten, so re-seeding will not reset a changed password.
+ */
+async function seedAdmin() {
+  const email = process.env.SEED_ADMIN_EMAIL || 'admin@wedinvite.local';
+  const password = process.env.SEED_ADMIN_PASSWORD || 'admin12345';
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    if (existing.role !== 'ADMIN') {
+      await prisma.user.update({ where: { email }, data: { role: 'ADMIN' } });
+      console.log(`Promoted existing user to admin: ${email}`);
+    } else {
+      console.log(`Admin already present: ${email}`);
+    }
+    return;
+  }
+
+  await prisma.user.create({
+    data: {
+      email,
+      name: 'Administrator',
+      hashedPassword: await bcrypt.hash(password, 10),
+      role: 'ADMIN',
+      subscriptionTier: 'BUSINESS',
+      emailVerified: new Date(),
+    },
+  });
+
+  console.log(`Admin created: ${email} / ${password}`);
+  console.log('Change this password after your first login.');
+}
 
 async function main() {
   const templates = [
@@ -113,7 +149,9 @@ async function main() {
     });
   }
 
-  console.log('Seed completed: 10 templates created');
+  console.log(`Seed completed: ${templates.length} templates`);
+
+  await seedAdmin();
 }
 
 main()

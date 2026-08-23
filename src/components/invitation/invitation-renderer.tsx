@@ -8,6 +8,7 @@ type InvitationRendererProps = TemplateProps;
 export function InvitationRenderer({
   invitation,
   guestName,
+  personalLink,
   isPreview,
 }: InvitationRendererProps) {
   const componentName = invitation.template?.componentName || 'elegant';
@@ -17,6 +18,7 @@ export function InvitationRenderer({
     <TemplateComponent
       invitation={invitation}
       guestName={guestName}
+      personalLink={personalLink}
       isPreview={isPreview}
     />
   );

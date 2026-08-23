@@ -7,6 +7,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { Invitation, Wish } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
+import { trpcQuery, trpcMutate, PublicApiError } from '@/lib/public-api';
 
 interface WishesSectionProps {
   invitation: Invitation & { wishes: Wish[] };
@@ -19,6 +21,9 @@ export function WishesSection({
   theme,
   guestName,
 }: WishesSectionProps) {
+  // Owners can hide this section from the invitation settings.
+  const visible = isSectionVisible(parseSettings(invitation.settings), 'showGuestbook');
+
   const [wishes, setWishes] = useState<Wish[]>(invitation.wishes || []);
   const [name, setName] = useState(guestName || '');
   const [message, setMessage] = useState('');
@@ -27,19 +32,13 @@ export function WishesSection({
 
   const fetchWishes = useCallback(async () => {
     try {
-      const response = await fetch(
-        `/api/trpc/wish.list?input=${encodeURIComponent(
-          JSON.stringify({ json: { invitationSlug: invitation.slug, limit: 50 } })
-        )}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data?.result?.data?.json?.wishes) {
-          setWishes(data.result.data.json.wishes);
-        }
-      }
+      const data = await trpcQuery<{ wishes: Wish[] }>('wish.list', {
+        invitationSlug: invitation.slug,
+        limit: 50,
+      });
+      if (data?.wishes) setWishes(data.wishes);
     } catch {
-      // Silently fail on refresh
+      // A failed refresh leaves the existing list on screen; nothing to report.
     }
   }, [invitation.slug]);
 
@@ -51,30 +50,26 @@ export function WishesSection({
     setError('');
 
     try {
-      const response = await fetch('/api/trpc/wish.create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          json: {
-            invitationSlug: invitation.slug,
-            guestName: name.trim(),
-            message: message.trim(),
-          },
-        }),
+      await trpcMutate('wish.create', {
+        invitationSlug: invitation.slug,
+        guestName: name.trim(),
+        message: message.trim(),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit wish');
-      }
 
       setMessage('');
       await fetchWishes();
-    } catch {
-      setError('Gagal mengirim ucapan. Silakan coba lagi.');
+    } catch (err) {
+      setError(
+        err instanceof PublicApiError
+          ? err.message
+          : 'Gagal mengirim ucapan. Silakan coba lagi.'
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (!visible) return null;
 
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>

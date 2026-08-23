@@ -3,21 +3,33 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { TemplateTheme } from '@/templates/types';
+import { trackEvent } from '@/lib/public-api';
 
 interface MusicPlayerProps {
   musicUrl?: string;
   theme: TemplateTheme;
   autoPlayOnOpen?: boolean;
+  /** Slug of the invitation, so the first playback can be recorded. */
+  invitationSlug?: string;
 }
 
 export function MusicPlayer({
   musicUrl,
   theme,
   autoPlayOnOpen,
+  invitationSlug,
 }: MusicPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // Playback is recorded once per visit, not on every pause/resume.
+  const trackedRef = useRef(false);
+
+  const recordPlay = () => {
+    if (trackedRef.current || !invitationSlug) return;
+    trackedRef.current = true;
+    trackEvent(invitationSlug, 'MUSIC_PLAY');
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -39,7 +51,10 @@ export function MusicPlayer({
     if (autoPlayOnOpen && audioRef.current && !isPlaying) {
       audioRef.current
         .play()
-        .then(() => setIsPlaying(true))
+        .then(() => {
+          setIsPlaying(true);
+          recordPlay();
+        })
         .catch(() => {
           // Auto-play was prevented by browser
         });
@@ -56,7 +71,10 @@ export function MusicPlayer({
     } else {
       audioRef.current
         .play()
-        .then(() => setIsPlaying(true))
+        .then(() => {
+          setIsPlaying(true);
+          recordPlay();
+        })
         .catch(() => {
           // Play was prevented
         });

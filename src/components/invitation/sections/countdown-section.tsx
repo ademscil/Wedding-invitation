@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 
 interface CountdownSectionProps {
   invitation: Invitation;
@@ -71,6 +72,9 @@ function CountdownUnit({
 }
 
 export function CountdownSection({ invitation, theme }: CountdownSectionProps) {
+  // Owners can hide this section from the invitation settings.
+  const visible = isSectionVisible(parseSettings(invitation.settings), 'showCountdown');
+
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [isPast, setIsPast] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -99,7 +103,7 @@ export function CountdownSection({ invitation, theme }: CountdownSectionProps) {
     return () => clearInterval(timer);
   }, [invitation.weddingDate]);
 
-  if (!invitation.weddingDate) return null;
+  if (!visible || !invitation.weddingDate) return null;
 
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>

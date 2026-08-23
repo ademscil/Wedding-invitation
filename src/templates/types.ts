@@ -19,5 +19,7 @@ export interface TemplateTheme {
 export interface TemplateProps {
   invitation: Invitation & { template: Template | null; wishes: Wish[] };
   guestName?: string;
+  /** Personal link code of the guest viewing, so RSVP updates their record. */
+  personalLink?: string;
   isPreview?: boolean;
 }

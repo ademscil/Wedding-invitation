@@ -117,6 +117,46 @@ export function exportGuestsToExcel(
   XLSX.writeFile(wb, filename);
 }
 
+/**
+ * Canonical personalised invitation URL for a guest.
+ * Every surface — WhatsApp, copy-link, QR — must build the link through here
+ * so a scanned code and a shared link always resolve to the same page.
+ */
+export function buildGuestUrl(origin: string, slug: string, personalLink: string): string {
+  return `${origin.replace(/\/$/, '')}/${slug}/to/${personalLink}`;
+}
+
+/** Normalises an Indonesian phone number to the international form wa.me expects. */
+export function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('62')) return digits;
+  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+  if (digits.startsWith('8')) return `62${digits}`;
+  return digits;
+}
+
+export function buildWhatsAppMessage(
+  guestName: string,
+  invitationUrl: string,
+  brideName: string,
+  groomName: string
+): string {
+  return [
+    `Kepada Yth. ${guestName},`,
+    '',
+    'Dengan segala kerendahan hati, kami mengundang Bapak/Ibu/Saudara/i untuk hadir dalam acara pernikahan kami:',
+    '',
+    `*${brideName} & ${groomName}*`,
+    '',
+    'Undangan digital kami dapat diakses melalui link berikut:',
+    invitationUrl,
+    '',
+    'Kehadiran Bapak/Ibu/Saudara/i merupakan kehormatan dan kebahagiaan bagi kami.',
+    '',
+    'Terima kasih atas doa dan restunya.',
+  ].join('\n');
+}
+
 // Generate WhatsApp invitation link for a guest
 export function generateWhatsAppLink(
   guestName: string,
@@ -126,18 +166,21 @@ export function generateWhatsAppLink(
   groomName: string
 ): string {
   const message = encodeURIComponent(
-    `Kepada Yth. ${guestName},\n\nDengan segala kerendahan hati, kami mengundang Bapak/Ibu/Saudara/i untuk hadir dalam acara pernikahan kami:\n\n*${brideName} & ${groomName}*\n\nUndangan digital kami dapat diakses melalui link berikut:\n${invitationUrl}\n\nKehadiran Bapak/Ibu/Saudara/i merupakan kehormatan dan kebahagiaan bagi kami.\n\nTerima kasih atas doa dan restunya.`
+    buildWhatsAppMessage(guestName, invitationUrl, brideName, groomName)
   );
-  const cleanPhone = phone.replace(/\D/g, '').replace(/^0/, '62');
-  return `https://wa.me/${cleanPhone}?text=${message}`;
+  return `https://wa.me/${normalizePhone(phone)}?text=${message}`;
 }
 
-// Generate QR code data URL for a guest personal link
-export async function generateGuestQrCode(personalLink: string, baseUrl: string): Promise<string> {
-  const url = `${baseUrl}?to=${personalLink}`;
-  return QRCode.toDataURL(url, {
-    width: 300,
+/** QR code encoding the guest's personalised invitation URL. */
+export async function generateGuestQrCode(
+  personalLink: string,
+  origin: string,
+  slug: string
+): Promise<string> {
+  return QRCode.toDataURL(buildGuestUrl(origin, slug, personalLink), {
+    width: 400,
     margin: 2,
+    errorCorrectionLevel: 'M',
     color: { dark: '#1a1a1a', light: '#ffffff' },
   });
 }

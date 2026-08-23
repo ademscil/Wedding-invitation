@@ -7,35 +7,20 @@ import { Calendar, MapPin, Clock } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
 import type { InvitationEvent } from '@/types';
+import { parseEvents, buildCalendarUrl } from '@/lib/invitation-data';
 
 interface EventsSectionProps {
   invitation: Invitation;
   theme: TemplateTheme;
 }
 
-function parseEvents(eventsJson: string): InvitationEvent[] {
-  try {
-    return JSON.parse(eventsJson) as InvitationEvent[];
-  } catch {
-    return [];
-  }
-}
-
-function generateCalendarUrl(event: InvitationEvent): string {
-  const startDate = event.date.replace(/-/g, '');
-  const startTime = event.startTime.replace(/:/g, '') + '00';
-  const endTime = event.endTime
-    ? event.endTime.replace(/:/g, '') + '00'
-    : startTime;
-
-  const title = encodeURIComponent(event.name);
-  const location = encodeURIComponent(`${event.venue}, ${event.address}`);
-
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDate}T${startTime}/${startDate}T${endTime}&location=${location}`;
+function generateCalendarUrl(event: InvitationEvent, coupleNames: string): string | null {
+  return buildCalendarUrl(event, coupleNames);
 }
 
 export function EventsSection({ invitation, theme }: EventsSectionProps) {
   const events = parseEvents(invitation.events);
+  const coupleNames = `${invitation.brideName} & ${invitation.groomName}`;
 
   if (events.length === 0) return null;
 
@@ -71,14 +56,12 @@ export function EventsSection({ invitation, theme }: EventsSectionProps) {
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {events.map((event, index) => {
-            let formattedDate = event.date;
-            try {
-              formattedDate = format(new Date(event.date), 'EEEE, d MMMM yyyy', {
-                locale: id,
-              });
-            } catch {
-              // use raw date string
-            }
+            const parsedDate = event.date ? new Date(event.date) : null;
+            const formattedDate =
+              parsedDate && !Number.isNaN(parsedDate.getTime())
+                ? format(parsedDate, 'EEEE, d MMMM yyyy', { locale: id })
+                : event.date;
+            const calendarUrl = generateCalendarUrl(event, coupleNames);
 
             return (
               <motion.div
@@ -180,16 +163,18 @@ export function EventsSection({ invitation, theme }: EventsSectionProps) {
                       Buka Maps
                     </a>
                   )}
-                  <a
-                    href={generateCalendarUrl(event)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:opacity-90"
-                    style={{ backgroundColor: theme.colors.primary }}
-                  >
-                    <Calendar size={14} />
-                    Simpan Tanggal
-                  </a>
+                  {calendarUrl && (
+                    <a
+                      href={calendarUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:opacity-90"
+                      style={{ backgroundColor: theme.colors.primary }}
+                    >
+                      <Calendar size={14} />
+                      Simpan Tanggal
+                    </a>
+                  )}
                 </div>
               </motion.div>
             );
