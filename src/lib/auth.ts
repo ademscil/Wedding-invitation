@@ -90,11 +90,85 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    /**
+     * Links a Google sign-in to an account that already exists for the same
+     * address.
+     *
+     * Without this the Prisma adapter refuses the sign-in with
+     * `OAuthAccountNotLinked`: anyone who registered with email and password
+     * could never use the Google button afterwards, and the flow simply dead
+     * ended on an error page.
+     *
+     * Linking is gated on Google reporting the address as verified, so the
+     * person signing in has provably received mail at it. The local account is
+     * marked verified at the same time, since that proof now exists.
+     */
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== 'google') return true;
+
+      const email = user.email?.toLowerCase();
+      const emailVerifiedByGoogle =
+        (profile as { email_verified?: boolean } | undefined)?.email_verified === true;
+
+      if (!email || !emailVerifiedByGoogle) return true;
+
+      const existing = await prisma.user.findUnique({
+        where: { email },
+        include: { accounts: { select: { provider: true } } },
+      });
+
+      // No prior account, or Google is already linked — the adapter handles it.
+      if (!existing) return true;
+      if (existing.accounts.some((a) => a.provider === 'google')) return true;
+
+      await prisma.account.create({
+        data: {
+          userId: existing.id,
+          type: account.type,
+          provider: account.provider,
+          providerAccountId: account.providerAccountId,
+          access_token: account.access_token,
+          refresh_token: account.refresh_token,
+          expires_at: account.expires_at,
+          token_type: account.token_type,
+          scope: account.scope,
+          id_token: account.id_token,
+          session_state: account.session_state as string | undefined,
+        },
+      });
+
+      if (!existing.emailVerified) {
+        await prisma.user.update({
+          where: { id: existing.id },
+          data: { emailVerified: new Date() },
+        });
+      }
+
+      return true;
+    },
+
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.subscriptionTier = user.subscriptionTier;
+      }
+
+      /*
+       * A Google sign-in goes through the adapter, which returns a user shaped
+       * by NextAuth rather than our row, so role and tier can arrive undefined.
+       * Filling them from the database keeps plan gating and admin access
+       * working for OAuth accounts exactly as they do for password ones.
+       */
+      if (token.id && (token.role === undefined || token.subscriptionTier === undefined)) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, subscriptionTier: true },
+        });
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.subscriptionTier = dbUser.subscriptionTier;
+        }
       }
 
       // Refresh subscriptionTier/role from DB after client calls session update() (e.g. post-payment)

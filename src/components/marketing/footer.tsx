@@ -1,21 +1,26 @@
 import Link from 'next/link';
+import { siteConfig } from '@/config/site';
 
+/*
+ * Every entry here must resolve. The footer previously linked to /about,
+ * /blog, /contact, /guide and /support — five 404s on the front page of a
+ * product asking for money.
+ */
 const productLinks = [
   { label: 'Template', href: '#template' },
   { label: 'Fitur', href: '#fitur' },
-  { label: 'Harga', href: '#harga' },
+  { label: 'Harga', href: '/pricing' },
 ];
 
-const companyLinks = [
-  { label: 'Tentang', href: '/about' },
-  { label: 'Blog', href: '/blog' },
-  { label: 'Kontak', href: '/contact' },
+const legalLinks = [
+  { label: 'Syarat & Ketentuan', href: '/syarat-ketentuan' },
+  { label: 'Kebijakan Privasi', href: '/kebijakan-privasi' },
 ];
 
 const helpLinks = [
   { label: 'FAQ', href: '#faq' },
-  { label: 'Panduan', href: '/guide' },
-  { label: 'Dukungan', href: '/support' },
+  { label: 'Email Dukungan', href: `mailto:${siteConfig.supportEmail}`, external: true },
+  { label: 'WhatsApp', href: siteConfig.links.whatsapp, external: true },
 ];
 
 export function Footer() {
@@ -56,10 +61,10 @@ export function Footer() {
           {/* Perusahaan */}
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white">
-              Perusahaan
+              Legal
             </h3>
             <ul className="space-y-2">
-              {companyLinks.map((link) => (
+              {legalLinks.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
@@ -80,9 +85,12 @@ export function Footer() {
             <ul className="space-y-2">
               {helpLinks.map((link) => (
                 <li key={link.label}>
-                  {link.href.startsWith('#') ? (
+                  {link.href.startsWith('#') || link.external ? (
                     <a
                       href={link.href}
+                      {...(link.external && link.href.startsWith('http')
+                        ? { target: '_blank', rel: 'noopener noreferrer' }
+                        : {})}
                       className="text-sm text-primary-300 transition-colors hover:text-white"
                     >
                       {link.label}

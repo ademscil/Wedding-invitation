@@ -115,13 +115,23 @@ function LoginForm() {
             error={errors.email?.message}
             {...register('email')}
           />
-          <Input
-            label="Password"
-            type="password"
-            placeholder="Masukkan password"
-            error={errors.password?.message}
-            {...register('password')}
-          />
+          <div>
+            <Input
+              label="Password"
+              type="password"
+              placeholder="Masukkan password"
+              error={errors.password?.message}
+              {...register('password')}
+            />
+            <div className="mt-1.5 text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-primary hover:underline"
+              >
+                Lupa password?
+              </Link>
+            </div>
+          </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Masuk

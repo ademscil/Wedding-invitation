@@ -1,16 +1,108 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { hash, compare } from 'bcryptjs';
-import { router, protectedProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { getUserLimits } from '../lib/limits';
 import { assertRateLimit } from '../lib/rate-limit';
 import {
   createVerificationToken,
   buildVerificationUrl,
 } from '../lib/verification';
-import { sendEmail, verificationEmail } from '@/lib/email';
+import {
+  createPasswordResetToken,
+  consumePasswordResetToken,
+  peekPasswordResetToken,
+  buildPasswordResetUrl,
+} from '../lib/password-reset';
+import { sendEmail, verificationEmail, passwordResetEmail } from '@/lib/email';
 
 export const userRouter = router({
+  /**
+   * Starts a password reset.
+   *
+   * Always reports success. Saying "that email is not registered" would turn
+   * this into a way to discover which addresses have accounts, and the person
+   * who genuinely owns the address learns nothing extra from the difference.
+   */
+  requestPasswordReset: publicProcedure
+    .input(z.object({ email: z.string().trim().toLowerCase().email('Email tidak valid') }))
+    .mutation(async ({ ctx, input }) => {
+      // Throttled per address so the endpoint cannot be used to flood someone's
+      // inbox, and per the shared limiter so one caller cannot spin through many.
+      assertRateLimit(
+        `reset-password:${input.email}`,
+        { limit: 3, windowMs: 15 * 60_000 },
+        'Terlalu banyak permintaan. Coba lagi dalam beberapa menit.'
+      );
+
+      const user = await ctx.prisma.user.findUnique({
+        where: { email: input.email },
+        select: { email: true, name: true, hashedPassword: true },
+      });
+
+      // An account that only ever signed in with Google has no password to
+      // reset; sending a link would be confusing, but the response stays the same.
+      if (user?.hashedPassword) {
+        const token = await createPasswordResetToken(ctx.prisma, user.email);
+
+        await sendEmail({
+          to: user.email,
+          subject: 'Atur ulang password WedInvite Anda',
+          html: passwordResetEmail({
+            name: user.name ?? 'Pengguna',
+            url: buildPasswordResetUrl(token),
+          }),
+        }).catch((error) => {
+          // A delivery failure must not tell the caller the address exists.
+          console.error('[auth] password reset email failed to send:', error);
+        });
+      }
+
+      return { sent: true };
+    }),
+
+  /** Lets the reset form report a stale link before the visitor types anything. */
+  checkPasswordResetToken: publicProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const result = await peekPasswordResetToken(ctx.prisma, input.token);
+      return result.ok
+        ? { valid: true as const, reason: null }
+        : { valid: false as const, reason: result.reason };
+    }),
+
+  resetPassword: publicProcedure
+    .input(
+      z.object({
+        token: z.string().min(1),
+        newPassword: z.string().min(8, 'Password minimal 8 karakter').max(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const result = await consumePasswordResetToken(ctx.prisma, input.token);
+
+      if (!result.ok) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message:
+            result.reason === 'expired'
+              ? 'Tautan sudah kedaluwarsa. Silakan minta tautan baru.'
+              : 'Tautan tidak valid atau sudah pernah dipakai.',
+        });
+      }
+
+      await ctx.prisma.user.update({
+        where: { email: result.email },
+        data: {
+          hashedPassword: await hash(input.newPassword, 12),
+          // Completing a reset proves control of the inbox.
+          emailVerified: new Date(),
+        },
+      });
+
+      return { success: true };
+    }),
+
   /**
    * Quota snapshot for the dashboard, so plan limits are visible before a user
    * runs into them rather than surfacing as a surprise error mid-action.

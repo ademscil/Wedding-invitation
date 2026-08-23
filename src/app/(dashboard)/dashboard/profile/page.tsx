@@ -258,10 +258,10 @@ export default function ProfilePage() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Custom Domain</span>
-                <span className="font-medium">
-                  {tierConfig.hasCustomDomain ? 'Ya' : 'Tidak'}
-                </span>
+                <span className="text-muted-foreground">Domain Kustom</span>
+                {/* Not built yet, so it is not part of any plan. Saying
+                    "Tidak" would read as a limitation of this tier. */}
+                <span className="font-medium text-muted-foreground">Segera hadir</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Analitik</span>

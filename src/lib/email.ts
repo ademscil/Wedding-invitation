@@ -87,3 +87,24 @@ export function verificationEmail(params: { name: string; url: string }) {
     </div>
   `;
 }
+
+export function passwordResetEmail(params: { name: string; url: string }) {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Atur Ulang Password</h2>
+      <p>Halo ${params.name},</p>
+      <p>Kami menerima permintaan untuk mengatur ulang password akun WedInvite Anda.</p>
+      <p style="margin: 24px 0;">
+        <a href="${params.url}"
+           style="background:#8B2332;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">
+          Atur Ulang Password
+        </a>
+      </p>
+      <p style="color:#666;font-size:13px;">
+        Tautan ini hanya berlaku <strong>1 jam</strong> dan hanya bisa dipakai sekali.
+        Jika Anda tidak meminta ini, abaikan email ini — password Anda tidak berubah.
+      </p>
+      <p style="color:#999;font-size:12px;word-break:break-all;">${params.url}</p>
+    </div>
+  `;
+}

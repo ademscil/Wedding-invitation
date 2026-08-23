@@ -34,7 +34,6 @@ const PLAN_FEATURES: Record<string, string[]> = {
     '3 acara',
     'Love story',
     'Musik kustom',
-    'Custom domain',
     'Statistik lengkap',
     'Export tamu (CSV)',
     'Broadcast WhatsApp',
