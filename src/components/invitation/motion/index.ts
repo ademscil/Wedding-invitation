@@ -8,3 +8,5 @@ export { Parallax, ScrollFade } from './parallax';
 export { ScrollCue, ScrollProgress } from './scroll-cue';
 export { DrawnDivider, KenBurns } from './ornament';
 export { Ambience } from './ambience';
+export { SectionHeading } from './section-heading';
+export { Celebration } from './celebration';

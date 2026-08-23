@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Copy, Check, Gift } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { SectionHeading } from '../motion';
 import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import type { BankAccount } from '@/types';
 import { parseBankAccounts } from '@/lib/invitation-data';
@@ -124,40 +125,11 @@ export function GiftSection({ invitation, theme }: GiftSectionProps) {
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>
       <div className="mx-auto max-w-lg">
-        <motion.div
-          className="mb-12 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div
-            className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
-            style={{ backgroundColor: theme.colors.primary + '15' }}
-          >
-            <Gift size={24} style={{ color: theme.colors.primary }} />
-          </div>
-          <h2
-            className="mb-2 text-3xl sm:text-4xl"
-            style={{
-              color: theme.colors.text,
-              fontFamily: theme.fonts.heading,
-            }}
-          >
-            Amplop Digital
-          </h2>
-          <p
-            className="text-sm leading-relaxed tracking-widest"
-            style={{
-              color: theme.colors.textMuted,
-              fontFamily: theme.fonts.body,
-            }}
-          >
-            Doa restu Anda merupakan karunia yang sangat berarti bagi kami.
-            Namun jika Anda ingin memberikan tanda kasih, kami menyediakan
-            amplop digital berikut.
-          </p>
-        </motion.div>
+        <SectionHeading
+          title="Amplop Digital"
+          theme={theme}
+          icon={<Gift size={24} style={{ color: theme.colors.primary }} />}
+        />
 
         <div className="space-y-4">
           {accounts.map((account, index) => (

@@ -8,7 +8,7 @@ import type { TemplateTheme } from '@/templates/types';
 import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import type { GalleryImage } from '@/types';
 import { parseGalleryImages } from '@/lib/invitation-data';
-import { useReducedMotion } from '../motion';
+import { useReducedMotion, SectionHeading } from '../motion';
 
 interface GallerySectionProps {
   invitation: Invitation;
@@ -29,32 +29,11 @@ export function GallerySection({ invitation, theme }: GallerySectionProps) {
     <>
       <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>
         <div className="mx-auto max-w-4xl">
-          <motion.div
-            className="mb-12 text-center"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2
-              className="mb-2 text-3xl sm:text-4xl"
-              style={{
-                color: theme.colors.text,
-                fontFamily: theme.fonts.heading,
-              }}
-            >
-              Galeri
-            </h2>
-            <p
-              className="text-sm tracking-widest"
-              style={{
-                color: theme.colors.textMuted,
-                fontFamily: theme.fonts.body,
-              }}
-            >
-              Momen-momen berharga kami
-            </p>
-          </motion.div>
+        <SectionHeading
+          title="Galeri Foto"
+          subtitle="Momen-momen berharga kami"
+          theme={theme}
+        />
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
             {images.map((image, index) => (

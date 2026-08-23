@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Check, Send } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { SectionHeading, Celebration } from '../motion';
 import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import { trpcMutate, PublicApiError } from '@/lib/public-api';
 
@@ -74,32 +75,11 @@ export function RsvpSection({
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>
       <div className="mx-auto max-w-lg">
-        <motion.div
-          className="mb-12 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2
-            className="mb-2 text-3xl sm:text-4xl"
-            style={{
-              color: theme.colors.text,
-              fontFamily: theme.fonts.heading,
-            }}
-          >
-            Konfirmasi Kehadiran
-          </h2>
-          <p
-            className="text-sm tracking-widest"
-            style={{
-              color: theme.colors.textMuted,
-              fontFamily: theme.fonts.body,
-            }}
-          >
-            Kami menantikan kehadiran Anda
-          </p>
-        </motion.div>
+        <SectionHeading
+          title="Konfirmasi Kehadiran"
+          subtitle="Kami menantikan kehadiran Anda"
+          theme={theme}
+        />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -109,21 +89,36 @@ export function RsvpSection({
         >
           {isSubmitted ? (
             <motion.div
-              className="rounded-2xl border p-8 text-center"
+              className="relative overflow-hidden rounded-2xl border p-8 text-center"
               style={{ borderColor: theme.colors.secondary + '40' }}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0, scale: 0.92, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div
-                className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+              <Celebration
+                colors={[
+                  theme.colors.primary,
+                  theme.colors.secondary,
+                  theme.colors.accent,
+                ]}
+              />
+
+              <motion.div
+                className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
                 style={{ backgroundColor: theme.colors.primary + '15' }}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 14, delay: 0.15 }}
               >
-                <Check
-                  size={32}
-                  style={{ color: theme.colors.primary }}
-                />
-              </div>
+                <motion.span
+                  initial={{ scale: 0, rotate: -45 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 16, delay: 0.35 }}
+                >
+                  <Check size={32} style={{ color: theme.colors.primary }} />
+                </motion.span>
+              </motion.div>
+
               <h3
                 className="mb-2 text-xl"
                 style={{

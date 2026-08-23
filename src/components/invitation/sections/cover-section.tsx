@@ -10,6 +10,7 @@ import type { TemplateTheme } from '@/templates/types';
 import {
   AmbientParticles,
   SplitText,
+  ScrollCue,
   useReducedMotion,
   type ParticleKind,
 } from '../motion';
@@ -193,6 +194,8 @@ export function CoverSection({
               </motion.button>
             </motion.div>
           </div>
+
+          <ScrollCue color={theme.colors.textMuted} />
         </motion.section>
       )}
     </AnimatePresence>

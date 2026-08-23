@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { Invitation, Wish } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { SectionHeading } from '../motion';
 import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import { trpcQuery, trpcMutate, PublicApiError } from '@/lib/public-api';
 
@@ -74,41 +75,12 @@ export function WishesSection({
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>
       <div className="mx-auto max-w-lg">
-        <motion.div
-          className="mb-12 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div
-            className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
-            style={{ backgroundColor: theme.colors.primary + '15' }}
-          >
-            <MessageCircle
-              size={24}
-              style={{ color: theme.colors.primary }}
-            />
-          </div>
-          <h2
-            className="mb-2 text-3xl sm:text-4xl"
-            style={{
-              color: theme.colors.text,
-              fontFamily: theme.fonts.heading,
-            }}
-          >
-            Ucapan & Doa
-          </h2>
-          <p
-            className="text-sm tracking-widest"
-            style={{
-              color: theme.colors.textMuted,
-              fontFamily: theme.fonts.body,
-            }}
-          >
-            Berikan ucapan terbaik untuk kedua mempelai
-          </p>
-        </motion.div>
+        <SectionHeading
+          title="Ucapan & Doa"
+          subtitle="Kirimkan doa restu untuk kami"
+          theme={theme}
+          icon={<MessageCircle size={24} style={{ color: theme.colors.primary }} />}
+        />
 
         {/* Form */}
         <motion.form

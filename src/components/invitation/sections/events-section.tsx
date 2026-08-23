@@ -8,7 +8,7 @@ import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
 import type { InvitationEvent } from '@/types';
 import { parseEvents, buildCalendarUrl } from '@/lib/invitation-data';
-import { useReducedMotion } from '../motion';
+import { useReducedMotion, SectionHeading } from '../motion';
 
 interface EventsSectionProps {
   invitation: Invitation;
@@ -29,32 +29,11 @@ export function EventsSection({ invitation, theme }: EventsSectionProps) {
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>
       <div className="mx-auto max-w-3xl">
-        <motion.div
-          className="mb-12 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2
-            className="mb-2 text-3xl sm:text-4xl"
-            style={{
-              color: theme.colors.text,
-              fontFamily: theme.fonts.heading,
-            }}
-          >
-            Acara Pernikahan
-          </h2>
-          <p
-            className="text-sm tracking-widest"
-            style={{
-              color: theme.colors.textMuted,
-              fontFamily: theme.fonts.body,
-            }}
-          >
-            Rangkaian acara yang akan diselenggarakan
-          </p>
-        </motion.div>
+        <SectionHeading
+          title="Acara Pernikahan"
+          subtitle="Rangkaian acara yang akan diselenggarakan"
+          theme={theme}
+        />
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {events.map((event, index) => {

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { TemplateTheme } from '@/templates/types';
 import { trackEvent } from '@/lib/public-api';
+import { useReducedMotion } from '../motion';
 
 interface MusicPlayerProps {
   musicUrl?: string;
@@ -24,6 +25,7 @@ export function MusicPlayer({
   const [mounted, setMounted] = useState(false);
   // Playback is recorded once per visit, not on every pause/resume.
   const trackedRef = useRef(false);
+  const reduced = useReducedMotion();
 
   const recordPlay = () => {
     if (trackedRef.current || !invitationSlug) return;
@@ -86,48 +88,53 @@ export function MusicPlayer({
   return (
     <motion.button
       onClick={togglePlay}
-      className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-110"
+      className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-lg"
       style={{ backgroundColor: theme.colors.primary }}
-      initial={{ opacity: 0, scale: 0 }}
+      initial={reduced ? undefined : { opacity: 0, scale: 0 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: 1, type: 'spring' }}
-      aria-label={isPlaying ? 'Pause music' : 'Play music'}
+      transition={{ delay: 1, type: 'spring', stiffness: 260, damping: 18 }}
+      whileHover={reduced ? undefined : { scale: 1.1 }}
+      whileTap={reduced ? undefined : { scale: 0.92 }}
+      aria-label={isPlaying ? 'Jeda musik' : 'Putar musik'}
+      aria-pressed={isPlaying}
     >
+      {/* Ring that expands out of the control while audio is playing, so the
+          toggle reads as active without needing a label. */}
+      {isPlaying && !reduced && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: `1px solid ${theme.colors.primary}`,
+            animation: 'wi-pulse-ring 2s ease-out infinite',
+          }}
+        />
+      )}
+
       {isPlaying ? (
-        <motion.svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          animate={{ rotate: [0, 10, -10, 0] }}
-          transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+        // The disc turns while the track runs and stops when it is paused.
+        <motion.span
+          className="flex items-center justify-center"
+          animate={reduced ? undefined : { rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 6, ease: 'linear' }}
         >
-          <path d="M9 18V5l12-2v13" />
-          <circle cx="6" cy="18" r="3" />
-          <circle cx="18" cy="16" r="3" />
-        </motion.svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.6" />
+            <circle cx="12" cy="12" r="2.6" fill="white" />
+            <path
+              d="M12 4.5a7.5 7.5 0 0 1 7.5 7.5"
+              stroke="white"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              opacity="0.55"
+            />
+          </svg>
+        </motion.span>
       ) : (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={0.7}
-        >
-          <path d="M9 18V5l12-2v13" />
-          <circle cx="6" cy="18" r="3" />
-          <circle cx="18" cy="16" r="3" />
-          <line x1="1" y1="1" x2="23" y2="23" stroke="white" strokeWidth="2" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.6" opacity="0.7" />
+          <circle cx="12" cy="12" r="2.6" fill="white" opacity="0.7" />
+          <line x1="4" y1="20" x2="20" y2="4" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       )}
     </motion.button>
