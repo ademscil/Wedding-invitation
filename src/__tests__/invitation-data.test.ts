@@ -7,6 +7,8 @@ import {
   parseSettings,
   isSectionVisible,
   buildCalendarUrl,
+  coupleNames,
+  coupleInitials,
 } from '@/lib/invitation-data';
 
 describe('parseEvents', () => {
@@ -274,5 +276,45 @@ describe('editor to template round trip', () => {
     expect(parseBankAccounts(legacyBanks)[0].bankName).toBe('Mandiri');
     expect(parseBankAccounts(legacyBanks)[0].accountHolder).toBe('Ahmad Rizky');
     expect(parseGalleryImages(legacyGallery)[0].url).toBe('https://img/old.jpg');
+  });
+});
+
+describe('coupleNames', () => {
+  it('states the groom first, as an Indonesian invitation does', () => {
+    expect(coupleNames({ brideName: 'Aisyah', groomName: 'Adam' })).toBe(
+      'Adam & Aisyah'
+    );
+  });
+
+  it('shows the single name it has rather than a dangling ampersand', () => {
+    // Half-filled drafts are the normal state while someone is still typing.
+    expect(coupleNames({ brideName: 'Aisyah', groomName: '' })).toBe('Aisyah');
+    expect(coupleNames({ brideName: '', groomName: 'Adam' })).toBe('Adam');
+    expect(coupleNames({ brideName: '   ', groomName: 'Adam' })).toBe('Adam');
+    expect(coupleNames({ brideName: '', groomName: '' })).toBe('');
+  });
+
+  it('tolerates missing fields', () => {
+    expect(coupleNames({})).toBe('');
+    expect(coupleNames({ brideName: null, groomName: null })).toBe('');
+    expect(coupleNames({ groomName: 'Adam' })).toBe('Adam');
+  });
+
+  it('trims stray whitespace around the names', () => {
+    expect(coupleNames({ brideName: ' Aisyah ', groomName: ' Adam ' })).toBe(
+      'Adam & Aisyah'
+    );
+  });
+});
+
+describe('coupleInitials', () => {
+  it('puts the groom initial first and upper-cases both', () => {
+    expect(coupleInitials({ brideName: 'aisyah', groomName: 'adam' })).toBe('A & A');
+    expect(coupleInitials({ brideName: 'Nur', groomName: 'Budi' })).toBe('B & N');
+  });
+
+  it('falls back to the one initial available', () => {
+    expect(coupleInitials({ brideName: 'Nur', groomName: '' })).toBe('N');
+    expect(coupleInitials({})).toBe('');
   });
 });

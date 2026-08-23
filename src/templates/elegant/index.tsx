@@ -18,6 +18,7 @@ import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
+import { coupleNames } from '@/lib/invitation-data';
 
 function parseSettings(settingsJson: string): InvitationSettings {
   try {
@@ -252,7 +253,7 @@ export function ElegantTemplate({
               fontFamily: theme.fonts.script,
             }}
           >
-            {invitation.brideName} & {invitation.groomName}
+            {coupleNames(invitation)}
           </p>
           <p
             className="mt-6 text-xs"

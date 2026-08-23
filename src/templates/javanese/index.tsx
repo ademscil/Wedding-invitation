@@ -16,6 +16,7 @@ import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
+import { coupleNames } from '@/lib/invitation-data';
 
 const javaneseTheme: TemplateTheme = {
   colors: {
@@ -122,7 +123,7 @@ export function JavaneseTemplate({ invitation, guestName,
         <div className="py-8 text-center" style={{ backgroundColor: theme.colors.primary, color: '#F5DEB3' }}>
           <p className="text-sm">Wassalamu&apos;alaikum Warahmatullahi Wabarakatuh</p>
           <p className="mt-3 text-xs opacity-70">
-            {invitation.brideName} & {invitation.groomName}
+            {coupleNames(invitation)}
           </p>
         </div>
       </div>

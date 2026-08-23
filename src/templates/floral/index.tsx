@@ -17,6 +17,7 @@ import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
+import { coupleNames } from '@/lib/invitation-data';
 
 const floralTheme: TemplateTheme = {
   colors: {
@@ -126,7 +127,7 @@ export function FloralTemplate({ invitation, guestName,
           style={{ background: `linear-gradient(135deg, ${theme.colors.secondary}40, ${theme.colors.primary}30)` }}
         >
           <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.script, fontSize: '1.8rem' }}>
-            {invitation.brideName} & {invitation.groomName}
+            {coupleNames(invitation)}
           </p>
           <p className="mt-2" style={{ color: theme.colors.textMuted, fontSize: '0.75rem' }}>✿ ✿ ✿</p>
         </div>

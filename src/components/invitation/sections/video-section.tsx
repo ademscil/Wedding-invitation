@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Play } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
-import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
+import { parseSettings, isSectionVisible, coupleNames } from '@/lib/invitation-data';
 import { parseVideoUrl } from '@/lib/video';
 import { useReducedMotion, SectionHeading } from '../motion';
 
@@ -56,7 +56,7 @@ export function VideoSection({ invitation, theme }: VideoSectionProps) {
               className="absolute inset-0 h-full w-full"
               // `autoplay` is honest here: the visitor just pressed play.
               src={`${video.embedUrl}?autoplay=1&rel=0`}
-              title={`Video prewedding ${invitation.brideName} & ${invitation.groomName}`}
+              title={`Video prewedding ${coupleNames(invitation)}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"

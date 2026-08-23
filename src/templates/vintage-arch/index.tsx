@@ -18,6 +18,7 @@ import { WeddingInfoSection } from '@/components/invitation/sections/wedding-inf
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
+import { coupleNames } from '@/lib/invitation-data';
 
 function parseSettings(s: string): InvitationSettings {
   try {
@@ -44,7 +45,8 @@ const theme: TemplateTheme = {
 };
 
 function ArchMonogram({ bride, groom }: { bride: string; groom: string }) {
-  const initials = `${bride.charAt(0)}${groom.charAt(0)}`.toUpperCase();
+  // Groom's initial first, as the names are shown everywhere else.
+  const initials = `${groom.charAt(0)}${bride.charAt(0)}`.toUpperCase();
   return (
     <motion.div
       className="flex flex-col items-center py-10"
@@ -161,7 +163,7 @@ export function VintageArchTemplate({ invitation, guestName, personalLink, isPre
             >
               &ldquo;{invitation.quote}&rdquo;
             </motion.blockquote>
-            <ArchMonogram bride={invitation.brideName} groom={invitation.groomName} />
+            <ArchMonogram groom={invitation.groomName} bride={invitation.brideName} />
           </section>
         )}
 
@@ -194,7 +196,7 @@ export function VintageArchTemplate({ invitation, guestName, personalLink, isPre
 
         <div className="py-10 text-center" style={{ backgroundColor: theme.colors.primary }}>
           <p className="text-2xl" style={{ color: theme.colors.secondary, fontFamily: theme.fonts.script }}>
-            {invitation.brideName} & {invitation.groomName}
+            {coupleNames(invitation)}
           </p>
         </div>
       </div>

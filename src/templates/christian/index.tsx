@@ -16,6 +16,7 @@ import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
+import { coupleNames } from '@/lib/invitation-data';
 
 const christianTheme: TemplateTheme = {
   colors: {
@@ -117,7 +118,7 @@ export function ChristianTemplate({ invitation, guestName,
           </p>
           <p className="mt-1 text-xs opacity-70">— Pengkhotbah 4:9</p>
           <p className="mt-4 text-xs opacity-60">
-            {invitation.brideName} & {invitation.groomName}
+            {coupleNames(invitation)}
           </p>
         </div>
       </div>

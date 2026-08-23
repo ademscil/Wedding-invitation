@@ -121,7 +121,7 @@ export const invitationRouter = router({
         await assertSlugAvailable(ctx.prisma, finalSlug);
       } else {
         const base = slugify(
-          `${input.brideName || 'bride'}-dan-${input.groomName || 'groom'}`
+          `${input.groomName || 'groom'}-dan-${input.brideName || 'bride'}`
         );
         finalSlug = await buildUniqueSlug(ctx.prisma, base, () => nanoid(6));
       }
@@ -160,7 +160,7 @@ export const invitationRouter = router({
       await assertCanCreateInvitation(ctx.prisma, ctx.session.user.id);
 
       const base = slugify(
-        `${original.brideName || 'undangan'}-dan-${original.groomName || 'salinan'}`
+        `${original.groomName || 'undangan'}-dan-${original.brideName || 'salinan'}`
       );
       const slug = await buildUniqueSlug(ctx.prisma, base, () => nanoid(6));
 

@@ -15,7 +15,8 @@ export function formatCurrency(amount: number): string {
 }
 
 export function generateSlug(brideName: string, groomName: string): string {
-  const combined = `${brideName}-dan-${groomName}`;
+  // Groom first, matching how the names are shown everywhere else.
+  const combined = `${groomName}-dan-${brideName}`;
   return combined
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')

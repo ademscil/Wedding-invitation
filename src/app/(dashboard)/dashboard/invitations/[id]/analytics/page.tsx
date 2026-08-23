@@ -24,6 +24,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useFeature, FeatureLocked } from '@/components/dashboard/feature-gate';
+import { coupleNames } from '@/lib/invitation-data';
 
 function StatCard({
   icon: Icon,
@@ -151,7 +152,7 @@ export default function AnalyticsPage() {
           <h1 className="text-xl font-bold sm:text-2xl">Statistik Undangan</h1>
           {invitation && (
             <p className="text-sm text-muted-foreground">
-              {invitation.brideName} &amp; {invitation.groomName}
+              {coupleNames(invitation)}
             </p>
           )}
         </div>

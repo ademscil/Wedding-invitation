@@ -6,6 +6,7 @@ import { Share2, Copy, Check, MessageCircle } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
 import { trackEvent } from '@/lib/public-api';
+import { coupleNames } from '@/lib/invitation-data';
 
 interface ShareSectionProps {
   invitation: Invitation;
@@ -15,7 +16,7 @@ interface ShareSectionProps {
 export function ShareSection({ invitation, theme }: ShareSectionProps) {
   const [copied, setCopied] = useState(false);
 
-  const couple = `${invitation.brideName} & ${invitation.groomName}`;
+  const couple = coupleNames(invitation);
 
   /** The public URL, without any personal-link segment the current guest may be on. */
   const publicUrl =

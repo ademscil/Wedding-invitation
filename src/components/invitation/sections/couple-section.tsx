@@ -142,20 +142,6 @@ export function CoupleSection({ invitation, theme }: CoupleSectionProps) {
       >
         <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
           <PersonCard
-            name={invitation.brideName}
-            parents={
-              invitation.brideParents
-                ? `Putri dari ${invitation.brideParents}`
-                : undefined
-            }
-            photo={invitation.bridePhoto}
-            label="Mempelai Wanita"
-            theme={theme}
-            delay={0}
-            from="left"
-          />
-
-          <PersonCard
             name={invitation.groomName}
             parents={
               invitation.groomParents
@@ -164,6 +150,20 @@ export function CoupleSection({ invitation, theme }: CoupleSectionProps) {
             }
             photo={invitation.groomPhoto}
             label="Mempelai Pria"
+            theme={theme}
+            delay={0}
+            from="left"
+          />
+
+          <PersonCard
+            name={invitation.brideName}
+            parents={
+              invitation.brideParents
+                ? `Putri dari ${invitation.brideParents}`
+                : undefined
+            }
+            photo={invitation.bridePhoto}
+            label="Mempelai Wanita"
             theme={theme}
             delay={0.2}
             from="right"

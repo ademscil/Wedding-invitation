@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatDate } from '@/lib/utils';
 import { INVITATION_STATUS } from '@/lib/constants';
 import { trpc } from '@/lib/trpc/client';
+import { coupleNames } from '@/lib/invitation-data';
 
 interface InvitationCardProps {
   invitation: {
@@ -115,7 +116,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
         >
           <h3 className="truncate text-lg font-semibold">
             {invitation.brideName && invitation.groomName
-              ? `${invitation.brideName} & ${invitation.groomName}`
+              ? coupleNames(invitation)
               : 'Undangan Baru'}
           </h3>
         </Link>
@@ -188,7 +189,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
         title="Hapus Undangan?"
-        description={`Undangan ${invitation.brideName} & ${invitation.groomName} beserta seluruh data tamu, ucapan, dan riwayatnya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.`}
+        description={`Undangan ${coupleNames(invitation)} beserta seluruh data tamu, ucapan, dan riwayatnya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.`}
         confirmLabel="Ya, Hapus"
         isLoading={deleteMutation.isLoading}
         onConfirm={() => deleteMutation.mutate({ id: invitation.id })}

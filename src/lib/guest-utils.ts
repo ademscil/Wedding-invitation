@@ -194,7 +194,7 @@ export function buildWhatsAppMessage(
     '',
     'Dengan segala kerendahan hati, kami mengundang Bapak/Ibu/Saudara/i untuk hadir dalam acara pernikahan kami:',
     '',
-    `*${brideName} & ${groomName}*`,
+    `*${groomName} & ${brideName}*`,
     '',
     'Undangan digital kami dapat diakses melalui link berikut:',
     invitationUrl,

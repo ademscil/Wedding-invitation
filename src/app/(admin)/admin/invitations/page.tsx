@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { coupleNames } from '@/lib/invitation-data';
 
 export default function AdminInvitationsPage() {
   const [page, setPage] = useState(1);
@@ -50,7 +51,7 @@ export default function AdminInvitationsPage() {
                   {data?.invitations.map((inv) => (
                     <tr key={inv.id} className="hover:bg-muted/50">
                       <td className="py-3 pr-4 font-medium">
-                        {inv.brideName} & {inv.groomName}
+                        {coupleNames(inv)}
                       </td>
                       <td className="py-3 pr-4 text-muted-foreground text-xs">
                         {inv.user.name || inv.user.email}

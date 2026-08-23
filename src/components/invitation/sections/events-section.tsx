@@ -9,20 +9,21 @@ import type { TemplateTheme } from '@/templates/types';
 import type { InvitationEvent } from '@/types';
 import { parseEvents, buildCalendarUrl } from '@/lib/invitation-data';
 import { useReducedMotion, SectionHeading } from '../motion';
+import { coupleNames } from '@/lib/invitation-data';
 
 interface EventsSectionProps {
   invitation: Invitation;
   theme: TemplateTheme;
 }
 
-function generateCalendarUrl(event: InvitationEvent, coupleNames: string): string | null {
-  return buildCalendarUrl(event, coupleNames);
+function generateCalendarUrl(event: InvitationEvent, couple: string): string | null {
+  return buildCalendarUrl(event, couple);
 }
 
 export function EventsSection({ invitation, theme }: EventsSectionProps) {
   const reduced = useReducedMotion();
   const events = parseEvents(invitation.events);
-  const coupleNames = `${invitation.brideName} & ${invitation.groomName}`;
+  const couple = coupleNames(invitation);
 
   if (events.length === 0) return null;
 
@@ -42,7 +43,7 @@ export function EventsSection({ invitation, theme }: EventsSectionProps) {
               parsedDate && !Number.isNaN(parsedDate.getTime())
                 ? format(parsedDate, 'EEEE, d MMMM yyyy', { locale: id })
                 : event.date;
-            const calendarUrl = generateCalendarUrl(event, coupleNames);
+            const calendarUrl = generateCalendarUrl(event, couple);
 
             return (
               <motion.div

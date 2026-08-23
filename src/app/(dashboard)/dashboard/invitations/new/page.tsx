@@ -133,18 +133,19 @@ export default function NewInvitationPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Data Mempelai</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Nama Mempelai Wanita"
-              placeholder="Contoh: Siti Aisyah"
-              value={brideName}
-              onChange={(e) => setBrideName(e.target.value)}
-              required
-            />
+            {/* Groom before bride, the order an Indonesian invitation uses. */}
             <Input
               label="Nama Mempelai Pria"
               placeholder="Contoh: Ahmad Rizky"
               value={groomName}
               onChange={(e) => setGroomName(e.target.value)}
+              required
+            />
+            <Input
+              label="Nama Mempelai Wanita"
+              placeholder="Contoh: Siti Aisyah"
+              value={brideName}
+              onChange={(e) => setBrideName(e.target.value)}
               required
             />
           </div>

@@ -18,6 +18,7 @@ import { WeddingInfoSection } from '@/components/invitation/sections/wedding-inf
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
+import { coupleNames, coupleInitials } from '@/lib/invitation-data';
 import {
   FloralTop,
   FloralBottom,
@@ -140,7 +141,7 @@ function HeroSection({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.5, delay: 1 }}
         >
-          {brideName} &amp; {groomName}
+          {coupleNames({ brideName, groomName })}
         </motion.h1>
 
         <motion.div
@@ -490,7 +491,7 @@ function ClosingSection({
   groomName: string;
   quote: string | null;
 }) {
-  const initials = `${brideName.charAt(0)} & ${groomName.charAt(0)}`.toUpperCase();
+  const initials = coupleInitials({ brideName, groomName });
 
   const verse =
     quote ||
@@ -692,7 +693,7 @@ export function FloralVintageTemplate({
               fontFamily: theme.fonts.script,
             }}
           >
-            {invitation.brideName} &amp; {invitation.groomName}
+            {coupleNames(invitation)}
           </p>
           {weddingDate && (
             <p

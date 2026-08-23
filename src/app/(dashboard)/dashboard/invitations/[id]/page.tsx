@@ -34,6 +34,7 @@ import {
   parseGalleryImages,
   parseLoveStory,
   parseSettings,
+  coupleNames,
 } from '@/lib/invitation-data';
 import type {
   BankAccount,
@@ -320,7 +321,7 @@ export default function InvitationDetailPage() {
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">
             {invitation.brideName && invitation.groomName
-              ? `${invitation.brideName} & ${invitation.groomName}`
+              ? coupleNames(invitation)
               : 'Edit Undangan'}
           </h1>
           <Badge
@@ -410,30 +411,31 @@ export default function InvitationDetailPage() {
         {/* Couple Info */}
         <CollapsibleSection title="Data Mempelai" defaultOpen>
           <div className="space-y-4">
+            {/* Groom before bride, the order an Indonesian invitation uses. */}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Nama Mempelai Wanita"
-                value={brideName}
-                onChange={(e) => setBrideName(e.target.value)}
-              />
               <Input
                 label="Nama Mempelai Pria"
                 value={groomName}
                 onChange={(e) => setGroomName(e.target.value)}
               />
+              <Input
+                label="Nama Mempelai Wanita"
+                value={brideName}
+                onChange={(e) => setBrideName(e.target.value)}
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Orang Tua Mempelai Wanita"
-                placeholder="Bapak ... & Ibu ..."
-                value={brideParents}
-                onChange={(e) => setBrideParents(e.target.value)}
-              />
               <Input
                 label="Orang Tua Mempelai Pria"
                 placeholder="Bapak ... & Ibu ..."
                 value={groomParents}
                 onChange={(e) => setGroomParents(e.target.value)}
+              />
+              <Input
+                label="Orang Tua Mempelai Wanita"
+                placeholder="Bapak ... & Ibu ..."
+                value={brideParents}
+                onChange={(e) => setBrideParents(e.target.value)}
               />
             </div>
             <Input
@@ -721,24 +723,6 @@ export default function InvitationDetailPage() {
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Foto Mempelai Wanita</label>
-                {bridePhoto && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={bridePhoto} alt="Foto mempelai wanita" className="h-32 w-32 rounded-lg object-cover" />
-                )}
-                <ThemedUploadButton
-                  label="Upload Foto"
-                  endpoint="invitationImage"
-                  onClientUploadComplete={(res) => {
-                    setBridePhoto(res[0]?.url ?? '');
-                    toast.success('Foto berhasil diunggah');
-                  }}
-                  onUploadError={(error) => {
-                    toast.error(`Upload gagal: ${error.message}`);
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
                 <label className="text-sm font-medium">Foto Mempelai Pria</label>
                 {groomPhoto && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -749,6 +733,24 @@ export default function InvitationDetailPage() {
                   endpoint="invitationImage"
                   onClientUploadComplete={(res) => {
                     setGroomPhoto(res[0]?.url ?? '');
+                    toast.success('Foto berhasil diunggah');
+                  }}
+                  onUploadError={(error) => {
+                    toast.error(`Upload gagal: ${error.message}`);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Foto Mempelai Wanita</label>
+                {bridePhoto && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={bridePhoto} alt="Foto mempelai wanita" className="h-32 w-32 rounded-lg object-cover" />
+                )}
+                <ThemedUploadButton
+                  label="Upload Foto"
+                  endpoint="invitationImage"
+                  onClientUploadComplete={(res) => {
+                    setBridePhoto(res[0]?.url ?? '');
                     toast.success('Foto berhasil diunggah');
                   }}
                   onUploadError={(error) => {

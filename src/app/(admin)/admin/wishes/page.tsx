@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import { coupleNames } from '@/lib/invitation-data';
 
 export default function AdminWishesPage() {
   const [page, setPage] = useState(1);
@@ -67,7 +68,7 @@ export default function AdminWishesPage() {
                         target="_blank"
                         className="text-xs text-muted-foreground hover:underline"
                       >
-                        {wish.invitation.brideName} & {wish.invitation.groomName}
+                        {coupleNames(wish.invitation)}
                       </Link>
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2">{wish.message}</p>

@@ -20,6 +20,8 @@ test('every dashboard page renders without console errors', async ({
   page,
   console: watcher,
 }) => {
+  // Ten routes in one test, each compiled on demand by the dev server.
+  test.slow();
   await login(page);
 
   const base = `/dashboard/invitations/${seeded.invitationId}`;
@@ -63,6 +65,7 @@ test('every dashboard page renders without console errors', async ({
 });
 
 test('admin pages render for an admin', async ({ page, console: watcher }) => {
+  test.slow();
   const { prisma } = await import('../src/lib/db');
   await prisma.user.update({
     where: { id: seeded.userId },

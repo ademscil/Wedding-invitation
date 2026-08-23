@@ -6,6 +6,7 @@ import { InvitationRenderer } from '@/components/invitation/invitation-renderer'
 import { formatDate } from '@/lib/utils';
 import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/constants';
 import { parseSettings } from '@/lib/invitation-data';
+import { coupleNames } from '@/lib/invitation-data';
 
 /**
  * Shared loader and renderer for the two public entry points:
@@ -85,7 +86,7 @@ export async function buildInvitationMetadata(
     return { title: 'Undangan Tidak Ditemukan', robots: { index: false, follow: false } };
   }
 
-  const couple = `${invitation.brideName} & ${invitation.groomName}`;
+  const couple = coupleNames(invitation);
   const title = `Undangan Pernikahan ${couple}`;
   const description = invitation.weddingDate
     ? `${formatDate(invitation.weddingDate)} — Anda diundang untuk merayakan hari bahagia kami`

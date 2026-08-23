@@ -82,9 +82,10 @@ export function CoverSection({
               The Wedding Of
             </motion.p>
 
+            {/* Groom first, as an Indonesian invitation states the couple. */}
             <SplitText
               as="h1"
-              text={invitation.brideName}
+              text={invitation.groomName}
               by="word"
               delay={0.35}
               className="mb-1 text-4xl leading-tight sm:text-5xl md:text-6xl"
@@ -104,7 +105,7 @@ export function CoverSection({
 
             <SplitText
               as="h1"
-              text={invitation.groomName}
+              text={invitation.brideName}
               by="word"
               delay={0.95}
               className="mb-8 text-4xl leading-tight sm:text-5xl md:text-6xl"

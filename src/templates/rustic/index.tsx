@@ -18,6 +18,7 @@ import { WeddingInfoSection } from '@/components/invitation/sections/wedding-inf
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
 import { CoverSection } from '@/components/invitation/sections/cover-section';
+import { coupleNames } from '@/lib/invitation-data';
 
 function parseSettings(settingsJson: string): InvitationSettings {
   try {
@@ -179,7 +180,7 @@ export function RusticTemplate({ invitation, guestName,
             Terima kasih atas doa dan restu Anda
           </p>
           <p className="mt-3 text-3xl" style={{ color: theme.colors.primary, fontFamily: theme.fonts.script }}>
-            {invitation.brideName} & {invitation.groomName}
+            {coupleNames(invitation)}
           </p>
         </footer>
       </div>

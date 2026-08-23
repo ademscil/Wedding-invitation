@@ -161,7 +161,7 @@ export function rsvpNotificationEmail(params: {
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
       <h2>RSVP Baru dari ${escapeHtml(params.guestName)}</h2>
-      <p><strong>${escapeHtml(params.guestName)}</strong> mengonfirmasi <strong>${statusLabel}</strong> di undangan ${escapeHtml(params.brideName)} &amp; ${escapeHtml(params.groomName)}.</p>
+      <p><strong>${escapeHtml(params.guestName)}</strong> mengonfirmasi <strong>${statusLabel}</strong> di undangan ${escapeHtml(params.groomName)} &amp; ${escapeHtml(params.brideName)}.</p>
       <p>Jumlah tamu: ${escapeHtml(params.guestCount)}</p>
     </div>
   `;
@@ -177,7 +177,7 @@ export function wishNotificationEmail(params: {
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
       <h2>Ucapan Baru dari ${escapeHtml(params.guestName)}</h2>
       <p>"${escapeHtml(params.message)}"</p>
-      <p>— untuk undangan ${escapeHtml(params.brideName)} &amp; ${escapeHtml(params.groomName)}</p>
+      <p>— untuk undangan ${escapeHtml(params.groomName)} &amp; ${escapeHtml(params.brideName)}</p>
     </div>
   `;
 }

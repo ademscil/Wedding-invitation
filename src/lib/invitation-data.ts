@@ -105,6 +105,38 @@ export function parseLoveStory(json: string | null | undefined): LoveStoryEntry[
     .filter((entry) => entry.title.trim() !== '' || entry.description.trim() !== '');
 }
 
+/**
+ * The couple's names in the order an Indonesian invitation states them:
+ * the groom first, then the bride.
+ *
+ * Every place that shows both names goes through here, so the convention
+ * cannot drift between the cover, the dashboard, the share text and the
+ * notification emails.
+ */
+export function coupleNames(invitation: {
+  brideName?: string | null;
+  groomName?: string | null;
+}): string {
+  const groom = (invitation.groomName ?? '').trim();
+  const bride = (invitation.brideName ?? '').trim();
+
+  // A half-filled draft shows the one name it has rather than a stray "&".
+  if (groom && bride) return `${groom} & ${bride}`;
+  return groom || bride;
+}
+
+/** Same order, for a monogram: "A & N". */
+export function coupleInitials(invitation: {
+  brideName?: string | null;
+  groomName?: string | null;
+}): string {
+  const groom = (invitation.groomName ?? '').trim().charAt(0);
+  const bride = (invitation.brideName ?? '').trim().charAt(0);
+
+  if (groom && bride) return `${groom} & ${bride}`.toUpperCase();
+  return (groom || bride).toUpperCase();
+}
+
 export function parseSettings(json: string | null | undefined): InvitationSettings {
   if (!json) return {};
   try {

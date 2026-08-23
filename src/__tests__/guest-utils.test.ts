@@ -14,7 +14,8 @@ describe('generateWhatsAppLink', () => {
     expect(link).toMatch(/^https:\/\/wa\.me\/6281234567890\?text=/);
     const decoded = decodeURIComponent(link.split('?text=')[1]);
     expect(decoded).toContain('Budi');
-    expect(decoded).toContain('Siti & Ahmad');
+    // Groom first: the fifth argument is the groom, the fourth the bride.
+    expect(decoded).toContain('Ahmad & Siti');
     expect(decoded).toContain('https://wedinvite.id/siti-ahmad');
   });
 

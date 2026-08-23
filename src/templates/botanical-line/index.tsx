@@ -18,6 +18,7 @@ import { WeddingInfoSection } from '@/components/invitation/sections/wedding-inf
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
+import { coupleNames } from '@/lib/invitation-data';
 
 function parseSettings(s: string): InvitationSettings {
   try {
@@ -171,7 +172,7 @@ export function BotanicalLineTemplate({ invitation, guestName, personalLink, isP
 
         <div className="py-10 text-center" style={{ backgroundColor: theme.colors.primary }}>
           <p className="text-2xl" style={{ color: theme.colors.secondary, fontFamily: theme.fonts.script }}>
-            {invitation.brideName} & {invitation.groomName}
+            {coupleNames(invitation)}
           </p>
         </div>
       </div>
