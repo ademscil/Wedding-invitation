@@ -24,26 +24,27 @@ export default function DashboardPage() {
   } = trpc.invitation.list.useQuery();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Welcome */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <FloatingGem className="h-16 w-16 shrink-0" />
-          <div>
-            <h1 className="text-2xl font-bold md:text-3xl">
+        <div className="flex min-w-0 items-center gap-3">
+          {/* Decorative only — dropped on phones where the greeting needs the width. */}
+          <FloatingGem className="hidden h-14 w-14 shrink-0 sm:block lg:h-16 lg:w-16" />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl">
               Selamat datang, {session?.user?.name || 'Pengguna'}!
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground sm:text-base">
               Kelola undangan pernikahan digital Anda
             </p>
           </div>
         </div>
-        <Link href="/dashboard/invitations/new">
-          <Button>
+        <Button asChild className="w-full shrink-0 sm:w-auto">
+          <Link href="/dashboard/invitations/new">
             <Plus className="mr-2 h-4 w-4" />
             Buat Undangan Baru
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       <VerificationBanner />

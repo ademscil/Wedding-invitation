@@ -306,7 +306,7 @@ export default function InvitationDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-xl font-bold sm:text-2xl">
             {invitation.brideName && invitation.groomName
               ? `${invitation.brideName} & ${invitation.groomName}`
               : 'Edit Undangan'}
@@ -722,12 +722,12 @@ export default function InvitationDetailPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Musik Latar</label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Input
                   placeholder="URL musik (mp3)"
                   value={musicUrl}
                   onChange={(e) => setMusicUrl(e.target.value)}
-                  className="flex-1"
+                  className="min-w-0 flex-1"
                 />
                 <ThemedUploadButton
                   label="Upload Musik"

@@ -318,7 +318,7 @@ export default function GuestsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Daftar Tamu</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Daftar Tamu</h1>
           <p className="text-muted-foreground">Kelola tamu undangan Anda</p>
         </div>
         <div className="flex flex-wrap gap-2">

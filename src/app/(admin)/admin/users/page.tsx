@@ -26,9 +26,9 @@ export default function AdminUsersPage() {
   });
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div>
-        <h1 className="text-2xl font-bold">Manajemen Pengguna</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">Manajemen Pengguna</h1>
         <p className="text-sm text-muted-foreground">{data?.total ?? 0} pengguna terdaftar</p>
       </div>
 

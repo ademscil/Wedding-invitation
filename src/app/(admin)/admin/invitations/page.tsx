@@ -15,9 +15,9 @@ export default function AdminInvitationsPage() {
   const { data, isLoading, isError, error, refetch } = trpc.admin.listInvitations.useQuery({ page, limit: 20 });
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div>
-        <h1 className="text-2xl font-bold">Semua Undangan</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">Semua Undangan</h1>
         <p className="text-sm text-muted-foreground">{data?.total ?? 0} undangan dibuat</p>
       </div>
 

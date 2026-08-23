@@ -21,7 +21,18 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // Sandboxes that ship a preinstalled Chromium can set this to point at
+        // it, avoiding a download when the pinned build differs. Unset in CI,
+        // where Playwright manages its own browsers.
+        ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
+          ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } }
+          : {}),
+      },
+    },
   ],
 
   // Runs on its own port so an already-running dev server is left alone.

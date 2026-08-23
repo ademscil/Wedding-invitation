@@ -45,7 +45,7 @@ function CountdownUnit({
   return (
     <div className="flex flex-col items-center">
       <motion.div
-        className="flex h-16 w-16 items-center justify-center rounded-lg text-2xl font-bold sm:h-20 sm:w-20 sm:text-3xl"
+        className="flex h-14 w-14 items-center justify-center rounded-lg text-xl font-bold xs:h-16 xs:w-16 xs:text-2xl sm:h-20 sm:w-20 sm:text-3xl"
         style={{
           backgroundColor: theme.colors.primary + '15',
           color: theme.colors.primary,
@@ -147,7 +147,7 @@ export function CountdownSection({ invitation, theme }: CountdownSectionProps) {
             Hari Bahagia Telah Tiba!
           </motion.p>
         ) : mounted && timeLeft ? (
-          <div className="flex items-center justify-center gap-3 sm:gap-6">
+          <div className="flex items-center justify-center gap-2 xs:gap-3 sm:gap-6">
             <CountdownUnit value={timeLeft.days} label="Hari" theme={theme} />
             <span
               className="text-2xl font-light"
@@ -180,7 +180,7 @@ export function CountdownSection({ invitation, theme }: CountdownSectionProps) {
             />
           </div>
         ) : (
-          <div className="flex items-center justify-center gap-3 sm:gap-6">
+          <div className="flex items-center justify-center gap-2 xs:gap-3 sm:gap-6">
             {['Hari', 'Jam', 'Menit', 'Detik'].map((label) => (
               <CountdownUnit key={label} value={0} label={label} theme={theme} />
             ))}

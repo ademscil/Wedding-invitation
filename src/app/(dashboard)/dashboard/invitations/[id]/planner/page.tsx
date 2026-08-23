@@ -286,7 +286,7 @@ export default function PlannerPage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href={`/dashboard/invitations/${id}`}>
           <Button variant="ghost" size="icon">
@@ -294,7 +294,7 @@ export default function PlannerPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Event Planner</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Event Planner</h1>
           <p className="text-sm text-muted-foreground">
             Anggaran, vendor, dan checklist persiapan
           </p>

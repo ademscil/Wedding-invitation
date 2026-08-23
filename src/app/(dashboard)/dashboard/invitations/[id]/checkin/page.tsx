@@ -97,12 +97,12 @@ export default function CheckinPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href={`/dashboard/invitations/${id}`} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-2xl font-bold">QR Check-in</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">QR Check-in</h1>
       </div>
 
       <InvitationTabs invitationId={id} active="checkin" />

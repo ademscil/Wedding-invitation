@@ -32,9 +32,9 @@ export default async function AdminDashboardPage() {
   });
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div>
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">Admin Dashboard</h1>
         <p className="text-sm text-muted-foreground">Overview platform WedInvite</p>
       </div>
 

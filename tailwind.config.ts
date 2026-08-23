@@ -9,6 +9,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Smallest phones still in use (iPhone SE 1st gen and similar) are 320px.
+      // `xs` gives layouts a step between that and Tailwind's 640px `sm`.
+      screens: {
+        xs: '400px',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

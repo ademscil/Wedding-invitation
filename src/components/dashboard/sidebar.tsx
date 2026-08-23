@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { Menu, X, LogOut, Heart } from 'lucide-react';
+import { LogOut, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { dashboardNav } from '@/config/navigation';
 import { Button } from '@/components/ui/button';
@@ -12,35 +11,42 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { getInitials } from '@/lib/utils';
 
-interface DashboardSidebarProps {
+interface DashboardSidebarContentProps {
   user: {
     name?: string | null;
     email?: string | null;
     image?: string | null;
   };
+  onNavigate?: () => void;
 }
 
-export function DashboardSidebar({ user }: DashboardSidebarProps) {
+/**
+ * Navigation body, shared by the desktop sidebar and the mobile drawer.
+ * The frame around it lives in DashboardShell.
+ */
+export function DashboardSidebarContent({
+  user,
+  onNavigate,
+}: DashboardSidebarContentProps) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
     return pathname.startsWith(href);
   };
 
-  const sidebarContent = (
+  return (
     <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-2 px-6">
-        <Heart className="h-6 w-6 text-primary" />
-        <span className="text-xl font-bold text-primary">WedInvite</span>
+      <div className="flex h-14 shrink-0 items-center gap-2 px-5 lg:h-16 lg:px-6">
+        <Heart className="h-5 w-5 shrink-0 text-primary lg:h-6 lg:w-6" />
+        <span className="truncate text-lg font-bold text-primary lg:text-xl">
+          WedInvite
+        </span>
       </div>
 
       <Separator />
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {dashboardNav.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -48,7 +54,8 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
+              onClick={onNavigate}
+              aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 active
@@ -56,10 +63,10 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
-              <Icon className="h-5 w-5" />
-              {item.title}
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="truncate">{item.title}</span>
               {item.badge && (
-                <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
                   {item.badge}
                 </span>
               )}
@@ -70,22 +77,19 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
 
       <Separator />
 
-      {/* User Info */}
-      <div className="p-4">
+      <div className="shrink-0 p-4">
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={user.image || undefined} alt={user.name || ''} />
+          <Avatar className="h-9 w-9 shrink-0">
+            <AvatarImage src={user.image || undefined} alt="" />
             <AvatarFallback className="text-xs">
               {getInitials(user.name || 'U')}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 overflow-hidden">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">
               {user.name || 'Pengguna'}
             </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {user.email}
-            </p>
+            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
         </div>
         <Button
@@ -99,43 +103,5 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
         </Button>
       </div>
     </div>
-  );
-
-  return (
-    <>
-      {/* Mobile hamburger */}
-      <div className="fixed left-4 top-4 z-50 md:hidden">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-      </div>
-
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      {/* Mobile sidebar */}
-      <aside
-        className={cn(
-          'fixed inset-y-0 left-0 z-40 w-64 transform border-r bg-white transition-transform duration-200 ease-in-out md:hidden',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        {sidebarContent}
-      </aside>
-
-      {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r bg-white md:block">
-        {sidebarContent}
-      </aside>
-    </>
   );
 }

@@ -53,7 +53,7 @@ export default function NewInvitationPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Buat Undangan Baru</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">Buat Undangan Baru</h1>
         <p className="text-muted-foreground">
           Pilih template dan isi data mempelai untuk memulai
         </p>

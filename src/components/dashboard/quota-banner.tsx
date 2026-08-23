@@ -59,16 +59,16 @@ export function QuotaBanner() {
             </p>
 
             <p className="text-sm text-muted-foreground">
-              Undangan: <span className="font-medium">{quota.invitationCount}</span>
-              {quota.maxInvitations !== -1 ? (
-                <> dari {quota.maxInvitations}</>
-              ) : (
-                <> (tidak terbatas)</>
-              )}
+              Undangan terpakai:{' '}
+              <span className="font-medium">
+                {quota.invitationCount}
+                {quota.maxInvitations !== -1 && <> / {quota.maxInvitations}</>}
+              </span>
+              {quota.maxInvitations === -1 && ' (tanpa batas)'}
               {' · '}
               Maks tamu:{' '}
               <span className="font-medium">
-                {quota.maxGuests === -1 ? 'tidak terbatas' : quota.maxGuests}
+                {quota.maxGuests === -1 ? 'tanpa batas' : quota.maxGuests}
               </span>
               {quota.features.hasWatermark && ' · Watermark aktif'}
             </p>

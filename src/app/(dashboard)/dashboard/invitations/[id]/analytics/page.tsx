@@ -126,7 +126,7 @@ export default function AnalyticsPage() {
 
   if (isLoading || hasAnalytics === undefined) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link
           href={`/dashboard/invitations/${id}`}
@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Statistik Undangan</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Statistik Undangan</h1>
           {invitation && (
             <p className="text-sm text-muted-foreground">
               {invitation.brideName} &amp; {invitation.groomName}
