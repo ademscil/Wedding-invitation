@@ -12,6 +12,7 @@ import { RsvpSection } from '@/components/invitation/sections/rsvp-section';
 import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
+import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 
 const christianTheme: TemplateTheme = {
@@ -98,6 +99,7 @@ export function ChristianTemplate({ invitation, guestName,
           />
             <GiftSection invitation={invitation} theme={theme} />
             <WishesSection invitation={invitation} theme={theme} />
+            <WeddingInfoSection invitation={invitation} theme={theme} />
             <ShareSection invitation={invitation} theme={theme} />
           </>
         )}

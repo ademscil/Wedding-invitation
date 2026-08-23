@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Save, Loader2, Crown, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,16 +23,24 @@ import {
 import { formatCurrency } from '@/lib/utils';
 
 export default function ProfilePage() {
-  const { data: session } = useSession();
-  const [name, setName] = useState(session?.user?.name || '');
+  const { data: session, update: updateSession } = useSession();
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [saving, setSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const { data: subscription } = trpc.payment.getSubscription.useQuery();
   const { data: authMethods } = trpc.user.getAuthMethods.useQuery();
+  const { data: profile } = trpc.user.getProfile.useQuery();
+
+  // Hydrate the form from the database rather than the session token, so a
+  // value changed elsewhere is reflected here.
+  useEffect(() => {
+    if (!profile) return;
+    setName(profile.name ?? '');
+    setPhone(profile.phone ?? '');
+  }, [profile]);
   const tier = (subscription?.tier as SubscriptionTier) || 'FREE';
   const tierConfig = SUBSCRIPTION_TIERS[tier] || SUBSCRIPTION_TIERS.FREE;
 
@@ -67,14 +75,24 @@ export default function ProfilePage() {
     });
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    // Profile update would be handled by a tRPC procedure (not yet implemented)
-    // For now, show a placeholder toast
-    setTimeout(() => {
-      setSaving(false);
+  const updateProfileMutation = trpc.user.updateProfile.useMutation({
+    onSuccess: async () => {
       toast.success('Profil berhasil disimpan');
-    }, 500);
+      await utils.user.getProfile.invalidate();
+      // Refresh the session so the sidebar picks up the new name.
+      await updateSession();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Gagal menyimpan profil');
+    },
+  });
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      toast.error('Nama wajib diisi');
+      return;
+    }
+    updateProfileMutation.mutate({ name: name.trim(), phone: phone.trim() });
   };
 
   return (
@@ -103,7 +121,7 @@ export default function ProfilePage() {
           />
           <Input
             label="Email"
-            value={session?.user?.email || ''}
+            value={profile?.email ?? session?.user?.email ?? ''}
             disabled
           />
           <Input
@@ -113,8 +131,8 @@ export default function ProfilePage() {
             onChange={(e) => setPhone(e.target.value)}
           />
           <div className="flex justify-end pt-2">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? (
+            <Button onClick={handleSave} disabled={updateProfileMutation.isLoading}>
+              {updateProfileMutation.isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />

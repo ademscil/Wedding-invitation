@@ -108,6 +108,37 @@ export const userRouter = router({
     return { sent: true, alreadyVerified: false };
   }),
 
+  getProfile: protectedProcedure.query(async ({ ctx }) => {
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { id: true, name: true, email: true, phone: true, image: true },
+    });
+
+    if (!user) throw new TRPCError({ code: 'NOT_FOUND' });
+    return user;
+  }),
+
+  updateProfile: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().trim().min(1, 'Nama wajib diisi').max(100),
+        phone: z
+          .string()
+          .trim()
+          .max(25)
+          .regex(/^[0-9+\-\s()]*$/, 'Nomor HP hanya boleh berisi angka dan tanda + - ( )')
+          .optional()
+          .or(z.literal('')),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.user.update({
+        where: { id: ctx.session.user.id },
+        data: { name: input.name, phone: input.phone || null },
+        select: { id: true, name: true, phone: true },
+      });
+    }),
+
   getAuthMethods: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.session.user.id },
