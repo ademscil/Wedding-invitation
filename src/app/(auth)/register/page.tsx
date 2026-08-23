@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect } from 'react';
+import { signIn, getProviders } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -25,6 +25,24 @@ export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Mirrors the login page: the button follows the providers the server
+  // really registered, so it can never offer a flow that is not wired up.
+  const [hasGoogle, setHasGoogle] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProviders()
+      .then((providers) => {
+        if (!cancelled) setHasGoogle(Boolean(providers?.google));
+      })
+      .catch(() => {
+        // Offering no third-party button is the safe fallback.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const {
     register,
@@ -119,7 +137,7 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        {process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true' && (
+        {hasGoogle && (
           <>
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">

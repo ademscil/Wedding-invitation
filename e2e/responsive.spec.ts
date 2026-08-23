@@ -89,6 +89,17 @@ test.describe('touch targets', () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/login', { waitUntil: 'networkidle' });
 
+    // The auth card scales in from 0.98, so a control measured mid-animation
+    // reads a couple of percent short. Wait for the transition to settle
+    // before taking any measurement.
+    await page.waitForFunction(() => {
+      const animations = document.getAnimations?.() ?? [];
+      return animations.every((animation) => animation.playState !== 'running');
+    }, undefined, { timeout: 5000 }).catch(() => {
+      // Some browsers do not expose getAnimations; the wait below covers it.
+    });
+    await page.waitForTimeout(600);
+
     // 40px is a pragmatic floor; below that a control is awkward on a phone.
     const tooSmall = await page.evaluate(() => {
       const bad: string[] = [];

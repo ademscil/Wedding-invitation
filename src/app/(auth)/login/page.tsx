@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense } from 'react';
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect } from 'react';
+import { signIn, getProviders } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -27,6 +27,40 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  /*
+   * Whether to offer Google is decided by what the server actually registered,
+   * not by a separate NEXT_PUBLIC flag. The two used to be set independently:
+   * flag on with no credentials showed a button that failed with NextAuth's
+   * raw "Server error" page, and credentials set with the flag off hid a
+   * provider that would have worked.
+   */
+  const [hasGoogle, setHasGoogle] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProviders()
+      .then((providers) => {
+        if (!cancelled) setHasGoogle(Boolean(providers?.google));
+      })
+      .catch(() => {
+        // Offering no third-party button is the safe fallback.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // NextAuth bounces some failures back here with ?error=.
+  const authError = searchParams.get('error');
+  useEffect(() => {
+    if (!authError) return;
+    setError(
+      authError === 'OAuthAccountNotLinked'
+        ? 'Email ini sudah terdaftar dengan cara masuk yang lain. Masuk dengan email dan password Anda.'
+        : 'Gagal masuk. Silakan coba lagi.'
+    );
+  }, [authError]);
 
   const {
     register,
@@ -94,7 +128,7 @@ function LoginForm() {
           </Button>
         </form>
 
-        {process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true' && (
+        {hasGoogle && (
           <>
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
@@ -108,6 +142,7 @@ function LoginForm() {
             </div>
 
             <Button
+              type="button"
               variant="outline"
               className="w-full"
               onClick={() => signIn('google', { callbackUrl })}

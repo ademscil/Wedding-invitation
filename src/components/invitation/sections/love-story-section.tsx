@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { motion, useScroll, useSpring, useTransform } from 'framer-motion';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import type { LoveStoryEntry } from '@/types';
 import { SectionHeading, useReducedMotion } from '../motion';
 import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import { parseLoveStory } from '@/lib/invitation-data';
@@ -13,10 +14,30 @@ interface LoveStorySectionProps {
   theme: TemplateTheme;
 }
 
+/**
+ * Decides whether the section renders at all.
+ *
+ * The timeline below owns a `useScroll` target ref, and that hook may only run
+ * in a component guaranteed to mount — hooks cannot sit behind an early
+ * return. Keeping the gate separate is what lets the ref always attach.
+ */
 export function LoveStorySection({ invitation, theme }: LoveStorySectionProps) {
   // Owners can hide this section from the invitation settings.
   const visible = isSectionVisible(parseSettings(invitation.settings), 'showLoveStory');
+  const entries = parseLoveStory(invitation.loveStory);
 
+  if (!visible || entries.length === 0) return null;
+
+  return <LoveStoryTimeline entries={entries} theme={theme} />;
+}
+
+function LoveStoryTimeline({
+  entries,
+  theme,
+}: {
+  entries: LoveStoryEntry[];
+  theme: TemplateTheme;
+}) {
   const reduced = useReducedMotion();
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -28,10 +49,6 @@ export function LoveStorySection({ invitation, theme }: LoveStorySectionProps) {
     useTransform(scrollYProgress, [0, 1], [0, 1]),
     { stiffness: 80, damping: 22 }
   );
-
-  const entries = parseLoveStory(invitation.loveStory);
-
-  if (!visible || entries.length === 0) return null;
 
   return (
     <section className="px-6 py-20" style={{ backgroundColor: theme.colors.background }}>

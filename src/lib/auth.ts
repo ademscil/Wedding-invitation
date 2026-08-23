@@ -5,14 +5,38 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { compare } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 
+/**
+ * NextAuth refuses to run in production without a secret and reports it as a
+ * generic `Configuration` error, which reaches the person signing in as
+ * "check the server logs" and reaches the operator as nothing at all.
+ * Naming the missing variable up front turns a dead end into a one-line fix.
+ */
+function resolveSecret(): string | undefined {
+  const secret = process.env.NEXTAUTH_SECRET;
+
+  if (!secret && process.env.NODE_ENV === 'production') {
+    console.error(
+      '[auth] NEXTAUTH_SECRET is not set. Sign-in will fail with a ' +
+        'Configuration error until it is added to the environment. ' +
+        'Generate one with: openssl rand -base64 32'
+    );
+  }
+
+  return secret;
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
+  secret: resolveSecret(),
   session: {
     strategy: 'jwt',
   },
   pages: {
     signIn: '/login',
     newUser: '/dashboard',
+    // Without this NextAuth falls back to its own page, which tells the person
+    // signing in to "check the server logs" — advice they cannot act on.
+    error: '/auth-error',
   },
   providers: [
     // Google provider is only registered when credentials are configured,

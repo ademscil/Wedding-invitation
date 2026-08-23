@@ -7,6 +7,7 @@ import { Menu, X, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { DashboardSidebarContent } from './sidebar';
+import { PageTransition } from '@/components/ui/page-transition';
 
 interface DashboardShellProps {
   user: {
@@ -114,7 +115,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         </header>
 
         <main className="min-w-0 flex-1 bg-muted/30 p-4 sm:p-6 lg:p-8">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
     </div>

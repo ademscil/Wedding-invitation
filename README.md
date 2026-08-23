@@ -56,8 +56,7 @@ Copy `.env.example` to `.env.local` and fill in the values you need. The app run
 |---|---|---|
 | `DATABASE_URL` | Always | PostgreSQL connection string (Neon, Supabase, Vercel Postgres, or self-hosted) |
 | `NEXTAUTH_URL` / `NEXTAUTH_SECRET` | Always | `openssl rand -base64 32` to generate a secret |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in | From Google Cloud Console OAuth credentials |
-| `NEXT_PUBLIC_ENABLE_GOOGLE_AUTH` | Google sign-in | Set to `"true"` to show the Google button once credentials are set |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in | From Google Cloud Console OAuth credentials. The button appears automatically once both are set |
 | `UPLOADTHING_TOKEN` | Photo/music upload | From [uploadthing.com](https://uploadthing.com/dashboard) |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Email notifications | From [resend.com](https://resend.com/api-keys) |
 | `MIDTRANS_SERVER_KEY` / `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` | Paid subscriptions | Sandbox keys from [Midtrans dashboard](https://dashboard.sandbox.midtrans.com/settings/access-keys) |
