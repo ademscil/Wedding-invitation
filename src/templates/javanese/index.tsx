@@ -14,6 +14,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 
 const javaneseTheme: TemplateTheme = {
   colors: {
@@ -34,6 +35,7 @@ const javaneseTheme: TemplateTheme = {
 function BatikDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-3 py-8">
+      <Ambience theme={theme} particle="leaf" />
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.secondary + '50' }} />
       <svg width="40" height="20" viewBox="0 0 40 20">
         <ellipse cx="20" cy="10" rx="8" ry="4" fill="none" stroke={theme.colors.secondary} strokeWidth="1" />
@@ -68,7 +70,8 @@ export function JavaneseTemplate({ invitation, guestName,
           guestName={guestName}
           theme={theme}
           onOpen={() => setIsOpened(true)}
-        />
+        particle="leaf"
+          />
       )}
 
       {settings.musicUrl && (

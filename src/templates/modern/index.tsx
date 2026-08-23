@@ -16,6 +16,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 
 function parseSettings(settingsJson: string): InvitationSettings {
   try {
@@ -85,6 +86,7 @@ export function ModernTemplate({
       className="min-h-screen"
       style={{ backgroundColor: theme.colors.background }}
     >
+      <Ambience theme={theme} particle="sparkle" />
       {/* Cover */}
       {!isPreview && (
         <CoverSection
@@ -92,7 +94,8 @@ export function ModernTemplate({
           theme={theme}
           guestName={guestName}
           onOpen={() => setIsOpened(true)}
-        />
+        particle="sparkle"
+          />
       )}
 
       {/* Music Player */}

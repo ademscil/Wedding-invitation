@@ -15,6 +15,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 import { CoverSection } from '@/components/invitation/sections/cover-section';
 
 function parseSettings(settingsJson: string): InvitationSettings {
@@ -73,13 +74,15 @@ export function RusticTemplate({ invitation, guestName,
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: theme.colors.background }}>
+      <Ambience theme={theme} particle="leaf" />
       {!isPreview && (
         <CoverSection
           invitation={invitation}
           theme={theme}
           guestName={guestName}
           onOpen={() => setIsOpened(true)}
-        />
+        particle="leaf"
+          />
       )}
 
       {settings.musicUrl && (

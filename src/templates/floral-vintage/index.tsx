@@ -16,6 +16,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 import {
   FloralTop,
   FloralBottom,
@@ -606,13 +607,15 @@ export function FloralVintageTemplate({
         fontFamily: theme.fonts.body,
       }}
     >
+      <Ambience theme={theme} particle="petal" />
       {!isPreview && (
         <CoverSection
           invitation={invitation}
           guestName={guestName}
           theme={theme}
           onOpen={() => setIsOpened(true)}
-        />
+        particle="petal"
+          />
       )}
 
       {settings.musicUrl && (

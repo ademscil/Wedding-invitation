@@ -190,3 +190,57 @@ test.describe('dashboard', () => {
     await expect(drawer).not.toBeInViewport();
   });
 });
+
+/**
+ * Motion has an off switch. Heavy parallax and drifting particles genuinely
+ * make some people unwell, and nobody opts into a wedding invitation — so the
+ * system-level preference has to be honoured, not merely softened.
+ */
+test.describe('reduced motion', () => {
+  // `page.emulateMedia` is applied to this page directly. The `reducedMotion`
+  // fixture did not reach the browser here — matchMedia still reported
+  // no-preference — so the preference is set explicitly instead.
+  test('drops the ambient layers but keeps the content', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/audit-demo', { waitUntil: 'networkidle' });
+
+    // The preference is read in an effect, so the layers unmount a tick after
+    // hydration. Poll rather than guessing a sleep long enough to cover it.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () =>
+              document.querySelectorAll(
+                'div[aria-hidden="true"].pointer-events-none.fixed'
+              ).length
+          ),
+        { message: 'ambient layers should unmount under reduced motion' }
+      )
+      .toBe(0);
+
+    // The invitation itself must still be readable and openable.
+    await expect(
+      page.getByRole('button', { name: /buka undangan/i })
+    ).toBeVisible();
+    // The name appears in several places; the cover heading is the one that
+    // proves the invitation rendered rather than sitting at its hidden state.
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Siti Nurhaliza Ramadhani' })
+    ).toBeVisible();
+  });
+
+  test('still reveals section content once opened', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/audit-demo', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: /buka undangan/i }).click();
+    await page.waitForTimeout(500);
+
+    // Entrance animations are skipped, so sections must be visible immediately
+    // rather than stuck at their hidden starting state.
+    await expect(
+      page.getByRole('heading', { name: 'Acara Pernikahan' })
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Akad Nikah' })).toBeVisible();
+  });
+});

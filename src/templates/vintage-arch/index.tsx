@@ -16,6 +16,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 
 function parseSettings(s: string): InvitationSettings {
   try {
@@ -108,6 +109,7 @@ function StaggeredGreeting({
 function ArchDivider() {
   return (
     <div className="flex items-center justify-center gap-3 py-6">
+      <Ambience theme={theme} particle="petal" />
       <div className="h-px w-16" style={{ backgroundColor: theme.colors.secondary + '80' }} />
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
         <path
@@ -130,7 +132,8 @@ export function VintageArchTemplate({ invitation, guestName, personalLink, isPre
   return (
     <div style={{ backgroundColor: theme.colors.background, color: theme.colors.text, fontFamily: theme.fonts.body }}>
       {!isPreview && (
-        <CoverSection invitation={invitation} guestName={guestName} theme={theme} onOpen={() => setIsOpened(true)} />
+        <CoverSection invitation={invitation} guestName={guestName} theme={theme} onOpen={() => setIsOpened(true)} particle="petal"
+          />
       )}
 
       {settings.musicUrl && (

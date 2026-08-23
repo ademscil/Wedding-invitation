@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
+import { useReducedMotion } from '../motion';
 
 interface CoupleSectionProps {
   invitation: Invitation;
@@ -16,6 +17,7 @@ function PersonCard({
   label,
   theme,
   delay,
+  from = 'left',
 }: {
   name: string;
   parents?: string | null;
@@ -23,25 +25,32 @@ function PersonCard({
   label: string;
   theme: TemplateTheme;
   delay: number;
+  from?: 'left' | 'right';
 }) {
+  const reduced = useReducedMotion();
+
   return (
     <motion.div
       className="flex flex-col items-center text-center"
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={reduced ? undefined : { opacity: 0, x: from === 'left' ? -48 : 48 }}
+      whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: '-50px' }}
-      transition={{ duration: 0.8, delay }}
+      transition={{ duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div
+      <motion.div
         className="mb-4 h-40 w-40 overflow-hidden rounded-full border-4 sm:h-48 sm:w-48"
         style={{ borderColor: theme.colors.secondary }}
+        initial={reduced ? undefined : { scale: 0.85 }}
+        whileInView={{ scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.9, delay: delay + 0.1, ease: [0.22, 1, 0.36, 1] }}
       >
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={photo}
             alt={name}
-            className="h-full w-full object-cover"
+            className={reduced ? 'h-full w-full object-cover' : 'wi-ken-burns h-full w-full object-cover'}
           />
         ) : (
           <div
@@ -84,7 +93,7 @@ function PersonCard({
             )}
           </div>
         )}
-      </div>
+      </motion.div>
 
       <h3
         className="mb-2 text-2xl sm:text-3xl"
@@ -143,6 +152,7 @@ export function CoupleSection({ invitation, theme }: CoupleSectionProps) {
             label="Mempelai Wanita"
             theme={theme}
             delay={0}
+            from="left"
           />
 
           <PersonCard
@@ -156,6 +166,7 @@ export function CoupleSection({ invitation, theme }: CoupleSectionProps) {
             label="Mempelai Pria"
             theme={theme}
             delay={0.2}
+            from="right"
           />
         </div>
       </motion.div>

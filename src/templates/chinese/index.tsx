@@ -14,6 +14,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 
 const chineseTheme: TemplateTheme = {
   colors: {
@@ -34,6 +35,7 @@ const chineseTheme: TemplateTheme = {
 function DoubleLuckDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-4 py-8">
+      <Ambience theme={theme} particle="petal" />
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.primary + '40' }} />
       <span className="text-2xl font-bold" style={{ color: theme.colors.primary, lineHeight: 1 }} title="Double Happiness">
         囍
@@ -65,7 +67,8 @@ export function ChineseTemplate({ invitation, guestName,
           guestName={guestName}
           theme={theme}
           onOpen={() => setIsOpened(true)}
-        />
+        particle="petal"
+          />
       )}
 
       {settings.musicUrl && (

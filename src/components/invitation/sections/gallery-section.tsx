@@ -8,6 +8,7 @@ import type { TemplateTheme } from '@/templates/types';
 import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import type { GalleryImage } from '@/types';
 import { parseGalleryImages } from '@/lib/invitation-data';
+import { useReducedMotion } from '../motion';
 
 interface GallerySectionProps {
   invitation: Invitation;
@@ -20,6 +21,7 @@ export function GallerySection({ invitation, theme }: GallerySectionProps) {
 
   const images = parseGalleryImages(invitation.galleryImages);
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
+  const reduced = useReducedMotion();
 
   if (!visible || images.length === 0) return null;
 
@@ -59,18 +61,30 @@ export function GallerySection({ invitation, theme }: GallerySectionProps) {
               <motion.button
                 key={image.id}
                 className="group relative aspect-square overflow-hidden rounded-lg"
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.08 }}
+                initial={reduced ? undefined : { opacity: 0, y: 28, scale: 0.94 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{
+                  duration: 0.6,
+                  // Column offset staggers each row diagonally rather than
+                  // sweeping straight across.
+                  delay: (index % 3) * 0.09 + Math.floor(index / 3) * 0.05,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
                 onClick={() => setSelectedImage(image)}
-                whileHover={{ scale: 1.02 }}
+                whileHover={reduced ? undefined : { scale: 1.03 }}
+                whileTap={reduced ? undefined : { scale: 0.98 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={image.url}
-                  alt={image.caption || `Gallery photo ${index + 1}`}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  alt={image.caption || `Foto galeri ${index + 1}`}
+                  className={
+                    reduced
+                      ? 'h-full w-full object-cover'
+                      : 'wi-ken-burns h-full w-full object-cover transition-transform duration-500 group-hover:scale-110'
+                  }
+                  style={reduced ? undefined : { animationDelay: `${(index % 4) * -3}s` }}
                   loading="lazy"
                 />
                 {image.caption && (

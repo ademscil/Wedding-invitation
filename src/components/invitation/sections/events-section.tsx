@@ -8,6 +8,7 @@ import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
 import type { InvitationEvent } from '@/types';
 import { parseEvents, buildCalendarUrl } from '@/lib/invitation-data';
+import { useReducedMotion } from '../motion';
 
 interface EventsSectionProps {
   invitation: Invitation;
@@ -19,6 +20,7 @@ function generateCalendarUrl(event: InvitationEvent, coupleNames: string): strin
 }
 
 export function EventsSection({ invitation, theme }: EventsSectionProps) {
+  const reduced = useReducedMotion();
   const events = parseEvents(invitation.events);
   const coupleNames = `${invitation.brideName} & ${invitation.groomName}`;
 
@@ -71,10 +73,21 @@ export function EventsSection({ invitation, theme }: EventsSectionProps) {
                   borderColor: theme.colors.secondary + '40',
                   backgroundColor: theme.colors.background,
                 }}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.15 }}
+                // Cards alternate their entrance side so a two-column row
+                // converges on the centre rather than sliding as one block.
+                initial={
+                  reduced
+                    ? undefined
+                    : { opacity: 0, y: 36, x: index % 2 === 0 ? -20 : 20 }
+                }
+                whileInView={{ opacity: 1, y: 0, x: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{
+                  duration: 0.75,
+                  delay: index * 0.14,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                whileHover={reduced ? undefined : { y: -6 }}
               >
                 <h3
                   className="mb-4 text-xl font-semibold uppercase tracking-wider"

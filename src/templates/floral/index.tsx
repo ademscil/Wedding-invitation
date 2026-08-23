@@ -15,6 +15,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 
 const floralTheme: TemplateTheme = {
   colors: {
@@ -35,6 +36,7 @@ const floralTheme: TemplateTheme = {
 function FloralDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-3 py-8">
+      <Ambience theme={theme} particle="petal" />
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.secondary + '60' }} />
       <svg width="48" height="20" viewBox="0 0 48 20">
         <circle cx="24" cy="10" r="3" fill={theme.colors.primary} opacity="0.7" />
@@ -72,7 +74,8 @@ export function FloralTemplate({ invitation, guestName,
           guestName={guestName}
           theme={theme}
           onOpen={() => setIsOpened(true)}
-        />
+        particle="petal"
+          />
       )}
 
       {settings.musicUrl && (

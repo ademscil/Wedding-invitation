@@ -41,3 +41,81 @@
     text-wrap: balance;
   }
 }
+
+/*
+ * Invitation motion.
+ *
+ * These keyframes drive the ambient layers on the public invitation. They
+ * animate only `transform` and `opacity` so the browser can keep them on the
+ * compositor — a phone runs the whole drift without a single layout pass.
+ */
+
+@keyframes wi-fall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(var(--wi-drift, 0px), 110vh, 0) rotate(var(--wi-spin, 360deg));
+  }
+}
+
+@keyframes wi-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes wi-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes wi-shimmer {
+  0% {
+    background-position: -180% 0;
+  }
+  100% {
+    background-position: 180% 0;
+  }
+}
+
+@keyframes wi-ken-burns {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.14) translate3d(var(--wi-pan-x, 0), var(--wi-pan-y, 0), 0);
+  }
+}
+
+.wi-float {
+  animation: wi-float 3.5s ease-in-out infinite;
+}
+
+.wi-ken-burns {
+  animation: wi-ken-burns 14s ease-in-out infinite alternate;
+}
+
+.wi-shimmer {
+  background-size: 200% 100%;
+  animation: wi-shimmer 4.5s linear infinite;
+}
+
+/* Anyone who asked their system to reduce motion gets a still page. */
+@media (prefers-reduced-motion: reduce) {
+  .wi-float,
+  .wi-ken-burns,
+  .wi-shimmer {
+    animation: none !important;
+  }
+}

@@ -14,6 +14,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 
 const christianTheme: TemplateTheme = {
   colors: {
@@ -34,6 +35,7 @@ const christianTheme: TemplateTheme = {
 function CrossDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-4 py-8">
+      <Ambience theme={theme} particle="sparkle" />
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.secondary + '60' }} />
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
         <path d="M12 2v20M2 12h20" stroke={theme.colors.secondary} strokeWidth="1.5" strokeLinecap="round" />
@@ -65,7 +67,8 @@ export function ChristianTemplate({ invitation, guestName,
           guestName={guestName}
           theme={theme}
           onOpen={() => setIsOpened(true)}
-        />
+        particle="sparkle"
+          />
       )}
 
       {settings.musicUrl && (

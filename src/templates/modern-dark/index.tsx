@@ -15,6 +15,7 @@ import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
+import { Ambience } from '@/components/invitation/motion';
 
 const modernDarkTheme: TemplateTheme = {
   colors: {
@@ -35,6 +36,7 @@ const modernDarkTheme: TemplateTheme = {
 function GoldLineDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-3 py-8">
+      <Ambience theme={theme} particle="sparkle" />
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.primary + '30' }} />
       <svg width="32" height="12" viewBox="0 0 32 12">
         <circle cx="4" cy="6" r="2" fill={theme.colors.primary} />
@@ -68,7 +70,8 @@ export function ModernDarkTemplate({ invitation, guestName,
           guestName={guestName}
           theme={theme}
           onOpen={() => setIsOpened(true)}
-        />
+        particle="sparkle"
+          />
       )}
 
       {settings.musicUrl && (
