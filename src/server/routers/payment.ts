@@ -3,14 +3,65 @@ import { TRPCError } from '@trpc/server';
 import { nanoid } from 'nanoid';
 import { router, protectedProcedure } from '../trpc';
 import { SUBSCRIPTION_TIERS } from '@/lib/constants';
+import { evaluatePromo, normalizePromoCode } from '@/lib/promo';
 import {
   activateSubscription,
   isSettled,
-  planFromAmount,
+  planFromPayment,
   type MidtransStatus,
 } from '@/lib/payment';
 
+/** Looks a code up case-insensitively and scores it against a plan's price. */
+async function resolvePromo(
+  prisma: import('@prisma/client').PrismaClient,
+  rawCode: string | undefined,
+  plan: string,
+  amount: number
+) {
+  if (!rawCode || rawCode.trim() === '') return null;
+
+  const code = normalizePromoCode(rawCode);
+  const record = await prisma.promoCode.findUnique({ where: { code } });
+  const evaluation = evaluatePromo(record, plan, amount);
+
+  if (!evaluation.valid) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: evaluation.message });
+  }
+
+  return evaluation;
+}
+
 export const paymentRouter = router({
+  /**
+   * Prices a code before the customer commits to paying.
+   *
+   * The checkout re-evaluates it server-side regardless — this exists so the
+   * discount is visible on the button, not to be trusted as the final price.
+   */
+  previewPromo: protectedProcedure
+    .input(
+      z.object({
+        plan: z.enum(['STARTER', 'PREMIUM', 'BUSINESS']),
+        code: z.string().min(1).max(40),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const amount = SUBSCRIPTION_TIERS[input.plan].price;
+      const evaluation = await resolvePromo(
+        ctx.prisma,
+        input.code,
+        input.plan,
+        amount
+      );
+
+      return {
+        code: evaluation!.code,
+        discount: evaluation!.discount,
+        originalAmount: amount,
+        finalAmount: evaluation!.finalAmount,
+      };
+    }),
+
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.session.user.id },
@@ -35,11 +86,22 @@ export const paymentRouter = router({
     .input(
       z.object({
         plan: z.enum(['STARTER', 'PREMIUM', 'BUSINESS']),
+        promoCode: z.string().max(40).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const tierInfo = SUBSCRIPTION_TIERS[input.plan];
-      const amount = tierInfo.price;
+      const listPrice = tierInfo.price;
+
+      // Re-evaluated here rather than trusting anything the client priced.
+      const promo = await resolvePromo(
+        ctx.prisma,
+        input.promoCode,
+        input.plan,
+        listPrice
+      );
+
+      const amount = promo ? promo.finalAmount : listPrice;
 
       // nanoid suffix keeps order ids unique when two checkouts land in the same ms
       const orderId = `INV-${Date.now()}-${nanoid(6)}`;
@@ -53,8 +115,40 @@ export const paymentRouter = router({
           status: 'PENDING',
           gateway: 'midtrans',
           gatewayReferenceId: orderId,
+          // Recorded now so activation never has to guess from the amount,
+          // which a discount would make ambiguous.
+          plan: input.plan,
+          promoCode: promo?.code ?? null,
         },
       });
+
+      /*
+       * A code worth the full price leaves nothing to charge, and the gateway
+       * rejects a zero-value order. The promo was validated on the server just
+       * above, so the plan is granted directly instead of bouncing the customer
+       * to a checkout that cannot succeed.
+       */
+      if (amount === 0) {
+        await activateSubscription(
+          ctx.prisma,
+          payment.id,
+          ctx.session.user.id,
+          input.plan
+        );
+
+        return {
+          paymentId: payment.id,
+          orderId,
+          amount,
+          listPrice,
+          discount: promo?.discount ?? 0,
+          promoCode: promo?.code ?? null,
+          plan: input.plan,
+          snapToken: null,
+          isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
+          activated: true,
+        };
+      }
 
       const serverKey = process.env.MIDTRANS_SERVER_KEY ?? '';
       const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
@@ -100,9 +194,13 @@ export const paymentRouter = router({
         paymentId: payment.id,
         orderId,
         amount,
+        listPrice,
+        discount: promo?.discount ?? 0,
+        promoCode: promo?.code ?? null,
         plan: input.plan,
         snapToken,
         isProduction,
+        activated: false,
       };
     }),
 
@@ -126,7 +224,7 @@ export const paymentRouter = router({
         return { success: true, alreadyProcessed: true };
       }
 
-      const plan = planFromAmount(payment.amount);
+      const plan = planFromPayment(payment);
       if (!plan) {
         throw new TRPCError({
           code: 'BAD_REQUEST',

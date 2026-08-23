@@ -9,6 +9,7 @@ import {
   FileText,
   MessageSquare,
   LogOut,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +19,7 @@ export const adminNav = [
   { title: 'Undangan', href: '/admin/invitations', icon: Mail },
   { title: 'Template', href: '/admin/templates', icon: FileText },
   { title: 'Ucapan', href: '/admin/wishes', icon: MessageSquare },
+  { title: 'Promo', href: '/admin/promos', icon: Tag },
 ];
 
 function useIsActive() {

@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, adminProcedure } from '../trpc';
+import { normalizePromoCode } from '@/lib/promo';
 
 export const adminRouter = router({
   getStats: adminProcedure.query(async ({ ctx }) => {
@@ -154,5 +156,104 @@ export const adminRouter = router({
         where: { id: input.wishId },
         data: { isApproved: input.isApproved },
       });
+    }),
+
+  listPromos: adminProcedure.query(async ({ ctx }) => {
+    return ctx.prisma.promoCode.findMany({ orderBy: { createdAt: 'desc' } });
+  }),
+
+  createPromo: adminProcedure
+    .input(
+      z.object({
+        code: z.string().min(3).max(40),
+        discountType: z.enum(['PERCENTAGE', 'FIXED']),
+        discountValue: z.number().positive(),
+        maxUses: z.number().int().positive().nullable().default(null),
+        validFrom: z.string(),
+        validUntil: z.string(),
+        applicablePlans: z.array(z.enum(['STARTER', 'PREMIUM', 'BUSINESS'])).default([]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const code = normalizePromoCode(input.code);
+
+      if (!/^[A-Z0-9-]+$/.test(code)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Kode hanya boleh huruf, angka, dan tanda hubung.',
+        });
+      }
+
+      // A percentage above 100 would compute a discount larger than the price.
+      // evaluatePromo clamps it anyway, but storing it invites confusion later.
+      if (input.discountType === 'PERCENTAGE' && input.discountValue > 100) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Diskon persentase tidak boleh lebih dari 100%.',
+        });
+      }
+
+      const validFrom = new Date(input.validFrom);
+      const validUntil = new Date(input.validUntil);
+
+      if (Number.isNaN(validFrom.getTime()) || Number.isNaN(validUntil.getTime())) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Tanggal tidak valid.' });
+      }
+
+      if (validUntil < validFrom) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Tanggal berakhir harus setelah tanggal mulai.',
+        });
+      }
+
+      const existing = await ctx.prisma.promoCode.findUnique({ where: { code } });
+      if (existing) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'Kode ini sudah ada.',
+        });
+      }
+
+      return ctx.prisma.promoCode.create({
+        data: {
+          code,
+          discountType: input.discountType,
+          discountValue: input.discountValue,
+          maxUses: input.maxUses,
+          validFrom,
+          validUntil,
+          applicablePlans: JSON.stringify(input.applicablePlans),
+        },
+      });
+    }),
+
+  updatePromo: adminProcedure
+    .input(z.object({ id: z.string(), isActive: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.promoCode.update({
+        where: { id: input.id },
+        data: { isActive: input.isActive },
+      });
+    }),
+
+  deletePromo: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Deactivating keeps the history; deleting is for codes never used.
+      const promo = await ctx.prisma.promoCode.findUnique({
+        where: { id: input.id },
+        select: { currentUses: true },
+      });
+
+      if (promo && promo.currentUses > 0) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message:
+            'Kode ini sudah pernah dipakai. Nonaktifkan saja agar riwayat pembayaran tetap bisa ditelusuri.',
+        });
+      }
+
+      return ctx.prisma.promoCode.delete({ where: { id: input.id } });
     }),
 });

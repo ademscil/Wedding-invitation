@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import {
   activateSubscription,
   isSettled,
-  planFromAmount,
+  planFromPayment,
   verifyMidtransSignature,
   type MidtransStatus,
 } from '@/lib/payment';
@@ -42,9 +42,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (isSettled(body)) {
-      // Derive the plan from the amount we stored at checkout, never from the
+      // Take the plan from the row we wrote at checkout, never from the
       // notification body, and confirm the gateway charged at least that much.
-      const plan = planFromAmount(payment.amount);
+      const plan = planFromPayment(payment);
       if (!plan) {
         console.error(
           `[webhook] Unrecognised amount ${payment.amount} for payment ${payment.id}`

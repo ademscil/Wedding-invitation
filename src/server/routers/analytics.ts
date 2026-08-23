@@ -8,7 +8,7 @@ export const analyticsRouter = router({
   track: publicProcedure
     .input(
       z.object({
-        invitationSlug: z.string(),
+        invitationSlug: z.string().max(120),
         eventType: z.enum([
           'PAGE_VIEW',
           'RSVP_SUBMIT',
@@ -17,7 +17,8 @@ export const analyticsRouter = router({
           'MUSIC_PLAY',
           'SHARE',
         ]),
-        metadata: z.string().optional(),
+        // Written verbatim to a row on every page view; keep it small.
+        metadata: z.string().max(500).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

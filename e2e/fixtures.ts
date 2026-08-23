@@ -153,6 +153,13 @@ const IGNORED_CONSOLE = [
   /Download the React DevTools/i,
   /\[Fast Refresh\]/i,
   /was preloaded using link preload/i,
+  /*
+   * Next prefetches the links on a page; navigating away cancels those
+   * requests and logs this. The message itself says it falls back to a browser
+   * navigation, so nothing is broken — it is an artefact of a test moving
+   * faster than a person would.
+   */
+  /Failed to fetch RSC payload/i,
 ];
 
 export type ConsoleWatcher = { errors: string[]; assertClean: () => void };

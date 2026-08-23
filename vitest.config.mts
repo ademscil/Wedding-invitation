@@ -6,10 +6,10 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    // Playwright specs live in ./e2e and are run by `npm run test:e2e`.
-    exclude: ['e2e/**', 'node_modules/**'],
     globals: true,
     setupFiles: ['./src/__tests__/setup.ts'],
+    // Playwright specs live in ./e2e and are run by `npm run test:e2e`.
+    // (This key was previously declared twice, so the first was dead.)
     exclude: ['node_modules/**', '.next/**', 'e2e/**'],
   },
   resolve: {

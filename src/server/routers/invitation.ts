@@ -97,9 +97,9 @@ export const invitationRouter = router({
     .input(
       z.object({
         templateId: z.string().optional(),
-        brideName: z.string().default(''),
-        groomName: z.string().default(''),
-        slug: z.string().optional(),
+        brideName: z.string().max(120).default(''),
+        groomName: z.string().max(120).default(''),
+        slug: z.string().max(80).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -137,27 +137,85 @@ export const invitationRouter = router({
       });
     }),
 
+  /**
+   * Copies an invitation's content into a new draft.
+   *
+   * A wedding organiser on the Business plan builds the same shape of
+   * invitation over and over; retyping every event and bank account each time
+   * is the difference between the plan being worth its price and not.
+   *
+   * Guests, wishes, analytics and the custom domain are deliberately not
+   * copied: they belong to the original event, and the domain is unique.
+   */
+  duplicate: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const original = await assertOwnsInvitation(
+        ctx.prisma,
+        input.id,
+        ctx.session.user.id
+      );
+
+      // The copy counts against the plan exactly like a new invitation.
+      await assertCanCreateInvitation(ctx.prisma, ctx.session.user.id);
+
+      const base = slugify(
+        `${original.brideName || 'undangan'}-dan-${original.groomName || 'salinan'}`
+      );
+      const slug = await buildUniqueSlug(ctx.prisma, base, () => nanoid(6));
+
+      return ctx.prisma.invitation.create({
+        data: {
+          userId: ctx.session.user.id,
+          slug,
+          templateId: original.templateId,
+          // Always a draft: publishing is a decision, not something inherited.
+          status: 'DRAFT',
+          brideName: original.brideName,
+          groomName: original.groomName,
+          brideParents: original.brideParents,
+          groomParents: original.groomParents,
+          bridePhoto: original.bridePhoto,
+          groomPhoto: original.groomPhoto,
+          weddingDate: original.weddingDate,
+          quote: original.quote,
+          dressCode: original.dressCode,
+          streamingUrl: original.streamingUrl,
+          settings: original.settings,
+          events: original.events,
+          bankAccounts: original.bankAccounts,
+          galleryImages: original.galleryImages,
+          loveStory: original.loveStory,
+        },
+      });
+    }),
+
   update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
         templateId: z.string().optional(),
-        brideName: z.string().optional(),
-        groomName: z.string().optional(),
-        brideParents: z.string().optional(),
-        groomParents: z.string().optional(),
-        bridePhoto: z.string().optional(),
-        groomPhoto: z.string().optional(),
-        weddingDate: z.string().optional(),
-        slug: z.string().optional(),
-        quote: z.string().optional(),
-        dressCode: z.string().optional(),
-        streamingUrl: z.string().optional(),
-        settings: z.string().optional(),
-        events: z.string().optional(),
-        bankAccounts: z.string().optional(),
-        galleryImages: z.string().optional(),
-        loveStory: z.string().optional(),
+        brideName: z.string().max(120).optional(),
+        groomName: z.string().max(120).optional(),
+        brideParents: z.string().max(300).optional(),
+        groomParents: z.string().max(300).optional(),
+        bridePhoto: z.string().max(2048).optional(),
+        groomPhoto: z.string().max(2048).optional(),
+        weddingDate: z.string().max(40).optional(),
+        slug: z.string().max(80).optional(),
+        quote: z.string().max(1000).optional(),
+        dressCode: z.string().max(300).optional(),
+        streamingUrl: z.string().max(2048).optional(),
+        /*
+         * The JSON columns are capped by size as well as by the per-plan item
+         * counts checked below. The count limits alone would still allow a
+         * single event with a megabyte-long address.
+         */
+        settings: z.string().max(20_000).optional(),
+        events: z.string().max(20_000).optional(),
+        bankAccounts: z.string().max(10_000).optional(),
+        galleryImages: z.string().max(60_000).optional(),
+        loveStory: z.string().max(40_000).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

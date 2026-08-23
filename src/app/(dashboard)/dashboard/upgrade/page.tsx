@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SUBSCRIPTION_TIERS as TIERS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { FloatingGem } from '@/components/3d/floating-gem';
+import { PromoCodeField } from '@/components/dashboard/promo-code-field';
 
 const PLAN_FEATURES: Record<string, string[]> = {
   FREE: [
@@ -53,6 +54,12 @@ const PLAN_FEATURES: Record<string, string[]> = {
 
 export default function UpgradePage() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    discount: number;
+    plan: string;
+  } | null>(null);
   const { update: updateSession } = useSession();
   const { data: subscription } = trpc.payment.getSubscription.useQuery();
   const createCheckout = trpc.payment.createCheckout.useMutation();
@@ -67,7 +74,21 @@ export default function UpgradePage() {
   const handleUpgrade = async (plan: 'STARTER' | 'PREMIUM' | 'BUSINESS') => {
     setLoading(plan);
     try {
-      const result = await createCheckout.mutateAsync({ plan });
+      const result = await createCheckout.mutateAsync({
+        plan,
+        // Only send a code that was priced against this same plan.
+        promoCode:
+          appliedPromo?.plan === plan ? appliedPromo.code : undefined,
+      });
+
+      // A code worth the full price leaves nothing to pay; the server has
+      // already granted the plan.
+      if (result.activated) {
+        toast.success('Paket berhasil diaktifkan dengan kode promo!');
+        await updateSession();
+        window.location.reload();
+        return;
+      }
 
       if (!result.snapToken || typeof window === 'undefined') {
         // No Snap token means the gateway is not configured. The plan can only be
@@ -139,6 +160,13 @@ export default function UpgradePage() {
           Paket Anda saat ini: <span className="font-semibold text-primary">{TIERS[currentTier as keyof typeof TIERS].name}</span>
         </p>
       </div>
+
+      <PromoCodeField
+        value={promoInput}
+        onChange={setPromoInput}
+        applied={appliedPromo}
+        onApplied={setAppliedPromo}
+      />
 
       <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 lg:grid-cols-4">
         {(Object.entries(TIERS) as [string, typeof TIERS[keyof typeof TIERS]][]).map(([key, tier]) => {

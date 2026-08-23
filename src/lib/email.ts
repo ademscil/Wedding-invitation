@@ -79,7 +79,7 @@ export async function sendEmail(params: {
       await getTransporter().sendMail({
         from: fromAddress(),
         to: params.to,
-        subject: params.subject,
+        subject: sanitizeSubject(params.subject),
         html: params.html,
       });
       return { sent: true, via: 'smtp' };
@@ -95,7 +95,7 @@ export async function sendEmail(params: {
       await resend.emails.send({
         from: fromAddress(),
         to: params.to,
-        subject: params.subject,
+        subject: sanitizeSubject(params.subject),
         html: params.html,
       });
       return { sent: true, via: 'resend' };
@@ -119,6 +119,31 @@ export function isEmailConfigured(): boolean {
   return smtpConfigured() || Boolean(process.env.RESEND_API_KEY);
 }
 
+/**
+ * Escapes a value before it is interpolated into an email body.
+ *
+ * Guest names and messages arrive from the public invitation page, which
+ * anyone holding the link can post to. Interpolated raw, a name like
+ * `<a href="...">Klik di sini</a>` renders as a working link in the couple's
+ * inbox — a phishing message delivered by their own wedding service.
+ */
+export function escapeHtml(value: string | number): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Strips CR/LF from a subject line. A newline there can start a second header,
+ * which is how a Bcc gets added to someone else's notification.
+ */
+export function sanitizeSubject(subject: string): string {
+  return subject.replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
+}
+
 export function rsvpNotificationEmail(params: {
   brideName: string;
   groomName: string;
@@ -135,9 +160,9 @@ export function rsvpNotificationEmail(params: {
 
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2>RSVP Baru dari ${params.guestName}</h2>
-      <p><strong>${params.guestName}</strong> mengonfirmasi <strong>${statusLabel}</strong> di undangan ${params.brideName} &amp; ${params.groomName}.</p>
-      <p>Jumlah tamu: ${params.guestCount}</p>
+      <h2>RSVP Baru dari ${escapeHtml(params.guestName)}</h2>
+      <p><strong>${escapeHtml(params.guestName)}</strong> mengonfirmasi <strong>${statusLabel}</strong> di undangan ${escapeHtml(params.brideName)} &amp; ${escapeHtml(params.groomName)}.</p>
+      <p>Jumlah tamu: ${escapeHtml(params.guestCount)}</p>
     </div>
   `;
 }
@@ -150,9 +175,9 @@ export function wishNotificationEmail(params: {
 }) {
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2>Ucapan Baru dari ${params.guestName}</h2>
-      <p>"${params.message}"</p>
-      <p>— untuk undangan ${params.brideName} &amp; ${params.groomName}</p>
+      <h2>Ucapan Baru dari ${escapeHtml(params.guestName)}</h2>
+      <p>"${escapeHtml(params.message)}"</p>
+      <p>— untuk undangan ${escapeHtml(params.brideName)} &amp; ${escapeHtml(params.groomName)}</p>
     </div>
   `;
 }
@@ -161,10 +186,10 @@ export function verificationEmail(params: { name: string; url: string }) {
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
       <h2>Verifikasi Email Anda</h2>
-      <p>Halo ${params.name},</p>
+      <p>Halo ${escapeHtml(params.name)},</p>
       <p>Klik tombol di bawah untuk memverifikasi alamat email Anda di WedInvite.</p>
       <p style="margin: 24px 0;">
-        <a href="${params.url}"
+        <a href="${escapeHtml(params.url)}"
            style="background:#8B2332;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">
           Verifikasi Email
         </a>
@@ -172,7 +197,7 @@ export function verificationEmail(params: { name: string; url: string }) {
       <p style="color:#666;font-size:13px;">
         Tautan ini berlaku 24 jam. Jika Anda tidak membuat akun, abaikan email ini.
       </p>
-      <p style="color:#999;font-size:12px;word-break:break-all;">${params.url}</p>
+      <p style="color:#999;font-size:12px;word-break:break-all;">${escapeHtml(params.url)}</p>
     </div>
   `;
 }
@@ -181,10 +206,10 @@ export function passwordResetEmail(params: { name: string; url: string }) {
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
       <h2>Atur Ulang Password</h2>
-      <p>Halo ${params.name},</p>
+      <p>Halo ${escapeHtml(params.name)},</p>
       <p>Kami menerima permintaan untuk mengatur ulang password akun WedInvite Anda.</p>
       <p style="margin: 24px 0;">
-        <a href="${params.url}"
+        <a href="${escapeHtml(params.url)}"
            style="background:#8B2332;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">
           Atur Ulang Password
         </a>
@@ -193,7 +218,7 @@ export function passwordResetEmail(params: { name: string; url: string }) {
         Tautan ini hanya berlaku <strong>1 jam</strong> dan hanya bisa dipakai sekali.
         Jika Anda tidak meminta ini, abaikan email ini — password Anda tidak berubah.
       </p>
-      <p style="color:#999;font-size:12px;word-break:break-all;">${params.url}</p>
+      <p style="color:#999;font-size:12px;word-break:break-all;">${escapeHtml(params.url)}</p>
     </div>
   `;
 }

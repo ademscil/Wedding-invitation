@@ -8,6 +8,7 @@ import {
   Eye,
   Share2,
   Trash2,
+  Copy,
   Users,
   BarChart3,
   Calendar,
@@ -57,6 +58,18 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
     },
     onError: () => {
       toast.error('Gagal menghapus undangan');
+    },
+  });
+
+  const duplicateMutation = trpc.invitation.duplicate.useMutation({
+    onSuccess: (copy) => {
+      toast.success('Undangan disalin. Sekarang tinggal diubah seperlunya.');
+      utils.invitation.list.invalidate();
+      // Straight into the copy: duplicating is always a prelude to editing.
+      router.push(`/dashboard/invitations/${copy.id}`);
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Gagal menyalin undangan');
     },
   });
 
@@ -149,6 +162,16 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
         <Button variant="ghost" size="sm" onClick={handleShare}>
           <Share2 className="mr-1 h-3.5 w-3.5" />
           Share
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => duplicateMutation.mutate({ id: invitation.id })}
+          disabled={duplicateMutation.isLoading}
+          title="Buat salinan undangan ini"
+        >
+          <Copy className="mr-1 h-3.5 w-3.5" />
+          {duplicateMutation.isLoading ? 'Menyalin...' : 'Salin'}
         </Button>
         <Button
           variant="ghost"

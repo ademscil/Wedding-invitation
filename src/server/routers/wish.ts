@@ -9,7 +9,7 @@ export const wishRouter = router({
   list: publicProcedure
     .input(
       z.object({
-        invitationSlug: z.string(),
+        invitationSlug: z.string().max(120),
         limit: z.number().min(1).max(100).default(20),
         cursor: z.string().optional(),
       })
@@ -45,7 +45,7 @@ export const wishRouter = router({
   create: publicProcedure
     .input(
       z.object({
-        invitationSlug: z.string(),
+        invitationSlug: z.string().max(120),
         guestName: z.string().min(1).max(100),
         message: z.string().min(1).max(500),
       })

@@ -222,6 +222,16 @@ model Payment {
   status             String   @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
   gateway            String? // MIDTRANS | XENDIT
   gatewayReferenceId String?
+  /*
+   * The plan this payment buys, recorded when the checkout is created.
+   *
+   * It used to be inferred from `amount` at activation time. That stops
+   * working the moment a discount is applied — and it also silently breaks
+   * for historical payments whenever a price changes. Null on rows created
+   * before this column existed; those still fall back to the old inference.
+   */
+  plan               String?
+  promoCode          String?
   createdAt          DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

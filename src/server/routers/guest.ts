@@ -134,13 +134,15 @@ export const guestRouter = router({
   submitRsvp: publicProcedure
     .input(
       z.object({
-        invitationSlug: z.string(),
-        personalLink: z.string().optional(),
-        name: z.string().min(1),
+        // Anyone with the invitation link can post here, so every field is
+        // bounded: without a cap a single request can store megabytes.
+        invitationSlug: z.string().max(120),
+        personalLink: z.string().max(64).optional(),
+        name: z.string().min(1).max(100),
         status: z.enum(['ATTENDING', 'NOT_ATTENDING', 'MAYBE']),
-        guestCount: z.number().min(1).max(10).default(1),
-        session: z.string().optional(),
-        dietaryNotes: z.string().optional(),
+        guestCount: z.number().int().min(1).max(10).default(1),
+        session: z.string().max(60).optional(),
+        dietaryNotes: z.string().max(300).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
