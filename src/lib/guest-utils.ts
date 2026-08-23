@@ -9,6 +9,57 @@ export interface GuestRow {
   groupName?: string;
 }
 
+/**
+ * Column headings we accept, by the field they fill.
+ *
+ * Compared after stripping case, spaces, underscores and punctuation, because
+ * a customer's spreadsheet says "No HP", "no_hp" or "NOMOR HP" depending on
+ * who typed it. Matching literally meant a heading of "Nama" worked while
+ * "NAMA" imported nobody and reported no error at all.
+ */
+const HEADER_ALIASES: Record<keyof GuestRow, string[]> = {
+  name: ['nama', 'name', 'namatamu', 'guestname', 'namalengkap'],
+  phone: ['nohp', 'phone', 'nomorhp', 'nomor', 'telepon', 'telp', 'hp', 'whatsapp', 'wa'],
+  email: ['email', 'surel', 'alamatemail'],
+  groupName: ['grup', 'group', 'kategori', 'kelompok', 'golongan'],
+};
+
+function canonicalHeader(header: string): string {
+  return header.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** Maps one spreadsheet row onto a guest, whatever its headings look like. */
+function toGuestRow(row: Record<string, unknown>): GuestRow {
+  const byCanonical = new Map<string, string>();
+
+  for (const [key, value] of Object.entries(row)) {
+    if (value === null || value === undefined) continue;
+    // A blank heading produces an empty key; keep the first non-empty value.
+    const canonical = canonicalHeader(key);
+    if (canonical === '' || byCanonical.has(canonical)) continue;
+    byCanonical.set(canonical, String(value).trim());
+  }
+
+  const pick = (field: keyof GuestRow): string => {
+    for (const alias of HEADER_ALIASES[field]) {
+      const value = byCanonical.get(alias);
+      if (value) return value;
+    }
+    return '';
+  };
+
+  return {
+    name: pick('name'),
+    phone: pick('phone'),
+    email: pick('email'),
+    groupName: pick('groupName'),
+  };
+}
+
+function toGuestRows(rows: Record<string, unknown>[]): GuestRow[] {
+  return rows.map(toGuestRow).filter((row) => row.name.trim() !== '');
+}
+
 // Parse CSV/Excel file into guest rows
 export function parseGuestFile(file: File): Promise<GuestRow[]> {
   return new Promise((resolve, reject) => {
@@ -18,15 +69,7 @@ export function parseGuestFile(file: File): Promise<GuestRow[]> {
       Papa.parse<Record<string, string>>(file, {
         header: true,
         skipEmptyLines: true,
-        complete: (result) => {
-          const rows = result.data.map((row) => ({
-            name: row['nama'] || row['name'] || row['Nama'] || '',
-            phone: row['phone'] || row['no_hp'] || row['No HP'] || row['Nomor HP'] || '',
-            email: row['email'] || row['Email'] || '',
-            groupName: row['grup'] || row['group'] || row['Grup'] || '',
-          })).filter((r) => r.name.trim() !== '');
-          resolve(rows);
-        },
+        complete: (result) => resolve(toGuestRows(result.data)),
         error: reject,
       });
     } else if (ext === 'xlsx' || ext === 'xls') {
@@ -36,18 +79,23 @@ export function parseGuestFile(file: File): Promise<GuestRow[]> {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
-          const rows = json.map((row) => ({
-            name: String(row['nama'] || row['name'] || row['Nama'] || ''),
-            phone: String(row['phone'] || row['no_hp'] || row['No HP'] || row['Nomor HP'] || ''),
-            email: String(row['email'] || row['Email'] || ''),
-            groupName: String(row['grup'] || row['group'] || row['Grup'] || ''),
-          })).filter((r) => r.name.trim() !== '');
-          resolve(rows);
+          /*
+           * `raw: false` returns each cell as the text the customer sees.
+           * Reading raw values turns a phone number Excel stored as a number
+           * into 8123456789 — the leading zero every Indonesian number starts
+           * with, gone, and the WhatsApp link with it.
+           */
+          const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+            raw: false,
+            defval: '',
+          });
+          resolve(toGuestRows(json));
         } catch (err) {
           reject(err);
         }
       };
+      reader.onerror = () =>
+        reject(new Error('Gagal membaca file. Coba simpan ulang sebagai .xlsx atau .csv'));
       reader.readAsArrayBuffer(file);
     } else {
       reject(new Error('Format file tidak didukung. Gunakan CSV atau Excel (.xlsx)'));
