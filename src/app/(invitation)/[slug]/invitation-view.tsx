@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { InvitationRenderer } from '@/components/invitation/invitation-renderer';
 import { formatDate } from '@/lib/utils';
 import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/constants';
+import { parseSettings } from '@/lib/invitation-data';
 
 /**
  * Shared loader and renderer for the two public entry points:
@@ -113,6 +114,9 @@ export async function buildInvitationMetadata(
   return {
     title,
     description,
+    ...(parseSettings(invitation.settings).showInSearch === false && {
+      robots: { index: false, follow: false },
+    }),
     alternates: { canonical: canonicalUrl },
     openGraph: {
       title,

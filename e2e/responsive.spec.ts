@@ -148,6 +148,23 @@ test.describe('dashboard', () => {
         '/dashboard/upgrade',
       ];
 
+      // The admin screens are all wide tables and form grids, and were never
+      // covered here — the group was returning 500 so nothing reached them.
+      const { prisma } = await import('../src/lib/db');
+      const { E2E_EMAIL } = await import('./fixtures');
+      await prisma.user.updateMany({
+        where: { email: E2E_EMAIL },
+        data: { role: 'ADMIN' },
+      });
+      pages.push(
+        '/admin',
+        '/admin/users',
+        '/admin/invitations',
+        '/admin/templates',
+        '/admin/wishes',
+        '/admin/promos'
+      );
+
       for (const path of pages) {
         await page.goto(path, { waitUntil: 'networkidle' });
 

@@ -118,6 +118,7 @@ export default function InvitationDetailPage() {
   const [groomPhoto, setGroomPhoto] = useState('');
   const [musicUrl, setMusicUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [showInSearch, setShowInSearch] = useState(true);
 
   // Parsed here rather than on save so the owner sees a bad link rejected while
   // they are still looking at the field.
@@ -148,6 +149,7 @@ export default function InvitationDetailPage() {
 
       setMusicUrl(parseSettings(invitation.settings).musicUrl || '');
       setVideoUrl(parseSettings(invitation.settings).videoUrl || '');
+      setShowInSearch(parseSettings(invitation.settings).showInSearch !== false);
       setEvents(parseEvents(invitation.events));
       setBankAccounts(parseBankAccounts(invitation.bankAccounts));
       setGalleryImages(parseGalleryImages(invitation.galleryImages));
@@ -193,6 +195,7 @@ export default function InvitationDetailPage() {
         ...(invitation ? JSON.parse(invitation.settings || '{}') : {}),
         musicUrl: musicUrl || undefined,
         videoUrl: videoUrl || undefined,
+        showInSearch,
       }),
       events: JSON.stringify(events),
       bankAccounts: JSON.stringify(bankAccounts),
@@ -381,6 +384,27 @@ export default function InvitationDetailPage() {
         {/* Custom domain */}
         <CollapsibleSection title="Domain Kustom">
           <CustomDomainCard invitationId={id} />
+        </CollapsibleSection>
+
+        {/* Privacy */}
+        <CollapsibleSection title="Privasi & Pencarian">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={showInSearch}
+              onChange={(e) => setShowInSearch(e.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0 rounded border-input"
+            />
+            <span className="text-sm">
+              <span className="font-medium">Tampilkan di hasil pencarian Google</span>
+              <span className="mt-1 block text-muted-foreground">
+                Undangan Anda memuat alamat, tanggal, dan nomor rekening.
+                Matikan jika Anda hanya ingin undangan dibuka lewat tautan yang
+                Anda bagikan sendiri. Tautan personal per tamu tidak pernah
+                diindeks.
+              </span>
+            </span>
+          </label>
         </CollapsibleSection>
 
         {/* Couple Info */}

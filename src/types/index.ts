@@ -26,6 +26,14 @@ export type InvitationSettings = {
   showDressCode?: boolean;
   showStreaming?: boolean;
   showVideo?: boolean;
+  /**
+   * Whether search engines may index the invitation.
+   *
+   * An invitation carries the couple's home address, the wedding date and
+   * bank account numbers, so being findable by name is a decision they should
+   * get to make. Defaults to on, matching how these are normally shared.
+   */
+  showInSearch?: boolean;
   /** Prewedding video share link (YouTube or Vimeo); parsed before embedding. */
   videoUrl?: string;
 };
