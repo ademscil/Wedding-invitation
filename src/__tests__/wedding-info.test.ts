@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toYouTubeEmbed } from '@/components/invitation/sections/wedding-info-section';
+import { toYouTubeEmbed } from '@/lib/video';
 
 describe('toYouTubeEmbed', () => {
   it('converts a standard watch URL', () => {

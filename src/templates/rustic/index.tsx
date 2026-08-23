@@ -9,6 +9,7 @@ import { EventsSection } from '@/components/invitation/sections/events-section';
 import { CountdownSection } from '@/components/invitation/sections/countdown-section';
 import { LoveStorySection } from '@/components/invitation/sections/love-story-section';
 import { GallerySection } from '@/components/invitation/sections/gallery-section';
+import { VideoSection } from '@/components/invitation/sections/video-section';
 import { RsvpSection } from '@/components/invitation/sections/rsvp-section';
 import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
@@ -142,6 +143,9 @@ export function RusticTemplate({ invitation, guestName,
             <LeafDivider color={theme.colors.accent} />
           </>
         )}
+
+        {/* Prewedding Video */}
+        <VideoSection invitation={invitation} theme={theme} />
 
         {settings.showRsvp !== false && (
           <>

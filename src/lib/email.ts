@@ -1,33 +1,122 @@
 import { Resend } from 'resend';
+import nodemailer, { type Transporter } from 'nodemailer';
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+/**
+ * Outbound email.
+ *
+ * Two backends, because the choice is forced by whether the operator owns a
+ * domain yet:
+ *
+ * - Resend needs a verified domain. Its sandbox sender only delivers to the
+ *   account owner's own address, so password resets never reach a customer.
+ * - SMTP works with providers that verify a single sender address (Brevo,
+ *   Mailjet) or with a Gmail app password, neither of which needs a domain.
+ *
+ * SMTP is preferred when configured so an operator without a domain still has
+ * a working account-recovery path.
+ */
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'WedInvite <onboarding@resend.dev>';
+/*
+ * Every environment read happens inside a function. Reading at module load
+ * bakes in whatever was set when the module was first imported, which hides
+ * configuration changes from tests and from any runtime that populates the
+ * environment lazily.
+ */
+function fromAddress(): string {
+  return (
+    process.env.EMAIL_FROM ??
+    process.env.RESEND_FROM_EMAIL ??
+    'WedInvite <onboarding@resend.dev>'
+  );
+}
+
+let resendClient: Resend | null = null;
+
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  resendClient ??= new Resend(process.env.RESEND_API_KEY);
+  return resendClient;
+}
+
+function smtpConfigured(): boolean {
+  return Boolean(
+    process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD
+  );
+}
+
+let transporter: Transporter | null = null;
+
+function getTransporter(): Transporter {
+  if (transporter) return transporter;
+
+  const port = Number(process.env.SMTP_PORT ?? 587);
+
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    // 465 is implicit TLS; 587 upgrades with STARTTLS.
+    secure: port === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  });
+
+  return transporter;
+}
+
+export type SendEmailResult =
+  | { sent: true; via: 'smtp' | 'resend' }
+  | { sent: false; reason: 'not-configured' | 'failed'; error?: unknown };
 
 export async function sendEmail(params: {
   to: string;
   subject: string;
   html: string;
-}) {
-  if (!resend) {
-    // Resend not configured — skip silently so the app keeps working without it.
-    console.warn('[email] RESEND_API_KEY not set, skipping email to', params.to);
-    return { skipped: true };
+}): Promise<SendEmailResult> {
+  if (smtpConfigured()) {
+    try {
+      await getTransporter().sendMail({
+        from: fromAddress(),
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+      });
+      return { sent: true, via: 'smtp' };
+    } catch (error) {
+      console.error('[email] SMTP send failed:', error);
+      return { sent: false, reason: 'failed', error };
+    }
   }
 
-  try {
-    return await resend.emails.send({
-      from: FROM_EMAIL,
-      to: params.to,
-      subject: params.subject,
-      html: params.html,
-    });
-  } catch (error) {
-    console.error('[email] Failed to send email:', error);
-    return { skipped: true, error };
+  const resend = getResend();
+  if (resend) {
+    try {
+      await resend.emails.send({
+        from: fromAddress(),
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+      });
+      return { sent: true, via: 'resend' };
+    } catch (error) {
+      console.error('[email] Resend send failed:', error);
+      return { sent: false, reason: 'failed', error };
+    }
   }
+
+  // Nothing configured. Say so loudly: account recovery silently doing nothing
+  // is worse than the app refusing to pretend it sent something.
+  console.warn(
+    `[email] No email backend configured — "${params.subject}" was not sent to ${params.to}. ` +
+      'Set SMTP_HOST/SMTP_USER/SMTP_PASSWORD, or RESEND_API_KEY with a verified domain.'
+  );
+  return { sent: false, reason: 'not-configured' };
+}
+
+/** Whether any backend is available, so callers can warn before promising delivery. */
+export function isEmailConfigured(): boolean {
+  return smtpConfigured() || Boolean(process.env.RESEND_API_KEY);
 }
 
 export function rsvpNotificationEmail(params: {

@@ -25,6 +25,9 @@ export type InvitationSettings = {
   showMaps?: boolean;
   showDressCode?: boolean;
   showStreaming?: boolean;
+  showVideo?: boolean;
+  /** Prewedding video share link (YouTube or Vimeo); parsed before embedding. */
+  videoUrl?: string;
 };
 
 export type InvitationEvent = {

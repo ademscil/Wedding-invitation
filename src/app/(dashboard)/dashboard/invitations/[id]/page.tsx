@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Save,
@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemedUploadButton } from '@/components/ui/upload-button';
 import { cn } from '@/lib/utils';
+import { parseVideoUrl } from '@/lib/video';
 import { InvitationTabs } from '@/components/dashboard/invitation-tabs';
 import {
   parseEvents,
@@ -115,6 +116,11 @@ export default function InvitationDetailPage() {
   const [bridePhoto, setBridePhoto] = useState('');
   const [groomPhoto, setGroomPhoto] = useState('');
   const [musicUrl, setMusicUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+
+  // Parsed here rather than on save so the owner sees a bad link rejected while
+  // they are still looking at the field.
+  const parsedVideo = useMemo(() => parseVideoUrl(videoUrl), [videoUrl]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
@@ -140,6 +146,7 @@ export default function InvitationDetailPage() {
       setGroomPhoto(invitation.groomPhoto || '');
 
       setMusicUrl(parseSettings(invitation.settings).musicUrl || '');
+      setVideoUrl(parseSettings(invitation.settings).videoUrl || '');
       setEvents(parseEvents(invitation.events));
       setBankAccounts(parseBankAccounts(invitation.bankAccounts));
       setGalleryImages(parseGalleryImages(invitation.galleryImages));
@@ -184,6 +191,7 @@ export default function InvitationDetailPage() {
       settings: JSON.stringify({
         ...(invitation ? JSON.parse(invitation.settings || '{}') : {}),
         musicUrl: musicUrl || undefined,
+        videoUrl: videoUrl || undefined,
       }),
       events: JSON.stringify(events),
       bankAccounts: JSON.stringify(bankAccounts),
@@ -746,6 +754,39 @@ export default function InvitationDetailPage() {
                   <track kind="captions" />
                 </audio>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="video-url">
+                Video Prewedding
+              </label>
+              <Input
+                id="video-url"
+                placeholder="https://youtu.be/... atau https://vimeo.com/..."
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+              />
+              {videoUrl.trim() !== '' && !parsedVideo && (
+                <p className="text-sm text-destructive">
+                  Tautan tidak dikenali. Gunakan tautan YouTube atau Vimeo.
+                </p>
+              )}
+              {parsedVideo && (
+                <div className="mt-2 aspect-video w-full overflow-hidden rounded-lg border">
+                  <iframe
+                    className="h-full w-full"
+                    src={parsedVideo.embedUrl}
+                    title="Pratinjau video prewedding"
+                    allow="encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Video ditampilkan setelah galeri. Tamu menekan tombol putar
+                terlebih dahulu, jadi video tidak menghabiskan kuota mereka.
+              </p>
             </div>
           </div>
         </CollapsibleSection>

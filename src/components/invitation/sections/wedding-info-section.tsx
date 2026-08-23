@@ -6,40 +6,13 @@ import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
 import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
 import { trackEvent } from '@/lib/public-api';
+// Shared with the prewedding video section so both refuse the same lookalike
+// hosts; there used to be a second copy of this parser here.
+import { toYouTubeEmbed } from '@/lib/video';
 
 interface WeddingInfoSectionProps {
   invitation: Invitation;
   theme: TemplateTheme;
-}
-
-/**
- * Turns a YouTube watch/share/embed URL into an embeddable one.
- * Returns null for anything else, so an arbitrary link is never framed.
- */
-export function toYouTubeEmbed(url: string): string | null {
-  try {
-    const parsed = new URL(url.trim());
-    const host = parsed.hostname.replace(/^www\./, '');
-
-    let videoId: string | null = null;
-
-    if (host === 'youtu.be') {
-      videoId = parsed.pathname.slice(1);
-    } else if (host === 'youtube.com' || host === 'm.youtube.com') {
-      if (parsed.pathname === '/watch') {
-        videoId = parsed.searchParams.get('v');
-      } else if (parsed.pathname.startsWith('/embed/')) {
-        videoId = parsed.pathname.replace('/embed/', '');
-      } else if (parsed.pathname.startsWith('/live/')) {
-        videoId = parsed.pathname.replace('/live/', '');
-      }
-    }
-
-    if (!videoId || !/^[A-Za-z0-9_-]{6,}$/.test(videoId)) return null;
-    return `https://www.youtube.com/embed/${videoId}`;
-  } catch {
-    return null;
-  }
 }
 
 export function WeddingInfoSection({ invitation, theme }: WeddingInfoSectionProps) {

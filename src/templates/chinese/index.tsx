@@ -8,6 +8,7 @@ import { CoupleSection } from '@/components/invitation/sections/couple-section';
 import { EventsSection } from '@/components/invitation/sections/events-section';
 import { CountdownSection } from '@/components/invitation/sections/countdown-section';
 import { GallerySection } from '@/components/invitation/sections/gallery-section';
+import { VideoSection } from '@/components/invitation/sections/video-section';
 import { RsvpSection } from '@/components/invitation/sections/rsvp-section';
 import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
@@ -91,6 +92,9 @@ export function ChineseTemplate({ invitation, guestName,
           <>
             <GallerySection invitation={invitation} theme={theme} />
             <DoubleLuckDivider theme={theme} />
+            {/* Prewedding Video */}
+            <VideoSection invitation={invitation} theme={theme} />
+
             <RsvpSection
             invitation={invitation}
             theme={theme}

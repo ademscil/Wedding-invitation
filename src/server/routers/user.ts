@@ -188,7 +188,7 @@ export const userRouter = router({
 
     const token = await createVerificationToken(ctx.prisma, user.email);
 
-    await sendEmail({
+    const delivery = await sendEmail({
       to: user.email,
       subject: 'Verifikasi email WedInvite Anda',
       html: verificationEmail({
@@ -196,6 +196,17 @@ export const userRouter = router({
         url: buildVerificationUrl(token),
       }),
     });
+
+    // Telling the user "sent" when no mail left the building sends them to an
+    // inbox that will never receive anything. Unlike password reset, there is
+    // nothing to hide here — the account is already signed in.
+    if (!delivery.sent) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message:
+          'Email verifikasi belum bisa dikirim. Silakan coba lagi nanti atau hubungi dukungan.',
+      });
+    }
 
     return { sent: true, alreadyVerified: false };
   }),
