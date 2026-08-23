@@ -21,16 +21,26 @@ import { tmpdir } from 'node:os';
 
 const url = process.env.DATABASE_URL;
 
-// Local builds, and preview builds without a database, are left alone: the
-// sync is only meaningful where there is something to sync against.
-const shouldSync = Boolean(url) && (process.env.VERCEL || process.env.FORCE_DB_SYNC);
+/*
+ * Production deploys only.
+ *
+ * `VERCEL` is set on preview builds too, and DATABASE_URL is commonly
+ * configured for every environment at once — so keying off it would let a
+ * push to any experimental branch reshape the live database. A preview that
+ * carries schema changes will fail at runtime instead, which is the right
+ * trade: previews exist to find that out.
+ */
+const isProductionDeploy = process.env.VERCEL_ENV === 'production';
+const shouldSync = Boolean(url) && (isProductionDeploy || process.env.FORCE_DB_SYNC);
 
 if (!shouldSync) {
-  console.log(
-    url
-      ? '[db] Skipping schema sync (set FORCE_DB_SYNC=1 to run it outside Vercel).'
-      : '[db] Skipping schema sync: DATABASE_URL is not set.'
-  );
+  const reason = !url
+    ? 'DATABASE_URL is not set'
+    : process.env.VERCEL_ENV
+      ? `this is a ${process.env.VERCEL_ENV} deploy, not production`
+      : 'not a production deploy (set FORCE_DB_SYNC=1 to run it anyway)';
+
+  console.log(`[db] Skipping schema sync: ${reason}.`);
   process.exit(0);
 }
 
