@@ -3,27 +3,27 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
-  id             String    @id @default(cuid())
-  name           String?
-  email          String    @unique
-  emailVerified  DateTime?
-  image          String?
-  hashedPassword String?
-  phone          String?
-  role           String    @default("USER") // USER | ADMIN
-  subscriptionTier String  @default("FREE") // FREE | STARTER | PREMIUM | BUSINESS
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  name             String?
+  email            String    @unique
+  emailVerified    DateTime?
+  image            String?
+  hashedPassword   String?
+  phone            String?
+  role             String    @default("USER") // USER | ADMIN
+  subscriptionTier String    @default("FREE") // FREE | STARTER | PREMIUM | BUSINESS
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  accounts       Account[]
-  sessions       Session[]
-  invitations    Invitation[]
-  subscriptions  Subscription[]
-  payments       Payment[]
+  accounts      Account[]
+  sessions      Session[]
+  invitations   Invitation[]
+  subscriptions Subscription[]
+  payments      Payment[]
 }
 
 model Account {
@@ -40,6 +40,7 @@ model Account {
   id_token          String?
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
 }
 
@@ -55,6 +56,7 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
 }
 
@@ -62,7 +64,7 @@ model Template {
   id            String   @id @default(cuid())
   name          String
   slug          String   @unique
-  category      String   // ELEGANT | MODERN | MINIMALIST | ISLAMIC | RUSTIC | CHRISTIAN | TRADITIONAL | CHINESE
+  category      String // ELEGANT | MODERN | MINIMALIST | ISLAMIC | RUSTIC | CHRISTIAN | TRADITIONAL | CHINESE
   description   String?
   thumbnail     String?
   previewUrl    String?
@@ -73,70 +75,78 @@ model Template {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  invitations   Invitation[]
+  invitations Invitation[]
 }
 
 model Invitation {
-  id            String   @id @default(cuid())
-  userId        String
-  slug          String   @unique
-  customDomain  String?
-  templateId    String?
-  status        String   @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED | EXPIRED
+  id           String  @id @default(cuid())
+  userId       String
+  slug         String  @unique
+  customDomain String?
+  templateId   String?
+  status       String  @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED | EXPIRED
 
-  brideName     String   @default("")
-  groomName     String   @default("")
-  brideParents  String?
-  groomParents  String?
-  bridePhoto    String?
-  groomPhoto    String?
-  weddingDate   DateTime?
+  brideName    String    @default("")
+  groomName    String    @default("")
+  brideParents String?
+  groomParents String?
+  bridePhoto   String?
+  groomPhoto   String?
+  weddingDate  DateTime?
 
-  settings      String   @default("{}") // JSON string for colors, fonts, music, section toggles
-  events        String   @default("[]") // JSON array of events
-  bankAccounts  String   @default("[]") // JSON array of bank accounts
-  galleryImages String   @default("[]") // JSON array of gallery images
-  loveStory     String   @default("[]") // JSON array of love story entries
+  settings      String  @default("{}") // JSON string for colors, fonts, music, section toggles
+  events        String  @default("[]") // JSON array of events
+  bankAccounts  String  @default("[]") // JSON array of bank accounts
+  galleryImages String  @default("[]") // JSON array of gallery images
+  loveStory     String  @default("[]") // JSON array of love story entries
   quote         String?
   dressCode     String?
   streamingUrl  String?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  expiresAt     DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime?
 
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  template      Template? @relation(fields: [templateId], references: [id])
-  guests        Guest[]
-  wishes        Wish[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template         Template?         @relation(fields: [templateId], references: [id])
+  guests           Guest[]
+  wishes           Wish[]
   giftTransactions GiftTransaction[]
   analyticsEvents  AnalyticsEvent[]
+  budgetItems      BudgetItem[]
+  vendors          Vendor[]
+  checklistItems   ChecklistItem[]
+  seatingTables    SeatingTable[]
 }
 
 model Guest {
-  id             String   @id @default(cuid())
-  invitationId   String
-  name           String
-  phone          String?
-  email          String?
-  groupName      String?  // keluarga, teman, kantor
-  personalLink   String   @unique
-  qrCode         String?
-  rsvpStatus     String   @default("PENDING") // PENDING | ATTENDING | NOT_ATTENDING | MAYBE
-  rsvpGuestCount Int      @default(1)
-  rsvpSession    String?
-  dietaryNotes   String?
-  checkedIn      Boolean  @default(false)
-  checkedInAt    DateTime?
-  linkOpenedAt   DateTime?
-  messageSent    Boolean  @default(false)
+  id              String    @id @default(cuid())
+  invitationId    String
+  name            String
+  phone           String?
+  email           String?
+  groupName       String? // keluarga, teman, kantor
+  personalLink    String    @unique
+  qrCode          String?
+  rsvpStatus      String    @default("PENDING") // PENDING | ATTENDING | NOT_ATTENDING | MAYBE
+  rsvpGuestCount  Int       @default(1)
+  rsvpSession     String?
+  dietaryNotes    String?
+  checkedIn       Boolean   @default(false)
+  checkedInAt     DateTime?
+  linkOpenedAt    DateTime?
+  messageSent     Boolean   @default(false)
   messageOpenedAt DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tableId         String?
 
-  invitation     Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  invitation Invitation    @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  // SetNull so deleting a table unseats its guests instead of deleting them.
+  table      SeatingTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
 
   @@index([invitationId])
+  @@index([tableId])
 }
 
 model Wish {
@@ -147,7 +157,7 @@ model Wish {
   isApproved   Boolean  @default(true)
   createdAt    DateTime @default(now())
 
-  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 
   @@index([invitationId])
 }
@@ -157,13 +167,13 @@ model GiftTransaction {
   invitationId String
   senderName   String
   amount       Float
-  method       String   // BANK_TRANSFER | E_WALLET | CASH
+  method       String // BANK_TRANSFER | E_WALLET | CASH
   status       String   @default("PENDING") // PENDING | CONFIRMED | FAILED
   referenceId  String?
   message      String?
   createdAt    DateTime @default(now())
 
-  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 
   @@index([invitationId])
 }
@@ -171,31 +181,31 @@ model GiftTransaction {
 model AnalyticsEvent {
   id           String   @id @default(cuid())
   invitationId String
-  eventType    String   // PAGE_VIEW | RSVP_SUBMIT | WISH_SUBMIT | GIFT_CLICK | MUSIC_PLAY | SHARE
+  eventType    String // PAGE_VIEW | RSVP_SUBMIT | WISH_SUBMIT | GIFT_CLICK | MUSIC_PLAY | SHARE
   visitorIp    String?
   userAgent    String?
   referrer     String?
-  metadata     String?  // JSON
+  metadata     String? // JSON
   createdAt    DateTime @default(now())
 
-  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 
   @@index([invitationId, eventType])
   @@index([invitationId, createdAt])
 }
 
 model Subscription {
-  id         String   @id @default(cuid())
-  userId     String
-  plan       String   // FREE | STARTER | PREMIUM | BUSINESS
-  status     String   @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED
-  paymentId  String?
-  startsAt   DateTime @default(now())
-  expiresAt  DateTime?
-  autoRenew  Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id        String    @id @default(cuid())
+  userId    String
+  plan      String // FREE | STARTER | PREMIUM | BUSINESS
+  status    String    @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED
+  paymentId String?
+  startsAt  DateTime  @default(now())
+  expiresAt DateTime?
+  autoRenew Boolean   @default(false)
+  createdAt DateTime  @default(now())
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -205,27 +215,106 @@ model Payment {
   userId             String
   amount             Int
   currency           String   @default("IDR")
-  type               String   // SUBSCRIPTION | TEMPLATE_PURCHASE | ADDON
+  type               String // SUBSCRIPTION | TEMPLATE_PURCHASE | ADDON
   status             String   @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
-  gateway            String?  // MIDTRANS | XENDIT
+  gateway            String? // MIDTRANS | XENDIT
   gatewayReferenceId String?
   createdAt          DateTime @default(now())
 
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model PromoCode {
-  id             String   @id @default(cuid())
-  code           String   @unique
-  discountType   String   // PERCENTAGE | FIXED
-  discountValue  Float
-  maxUses        Int?
-  currentUses    Int      @default(0)
-  validFrom      DateTime
-  validUntil     DateTime
-  applicablePlans String  @default("[]") // JSON array
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
+  id              String   @id @default(cuid())
+  code            String   @unique
+  discountType    String // PERCENTAGE | FIXED
+  discountValue   Float
+  maxUses         Int?
+  currentUses     Int      @default(0)
+  validFrom       DateTime
+  validUntil      DateTime
+  applicablePlans String   @default("[]") // JSON array
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Event Planner — budget, vendors and checklist for a single wedding.
+// Scoped to an invitation so a user planning two events keeps them separate.
+// ---------------------------------------------------------------------------
+
+model BudgetItem {
+  id            String   @id @default(cuid())
+  invitationId  String
+  category      String // VENUE | CATERING | DECOR | ATTIRE | DOCUMENTATION | ENTERTAINMENT | OTHER
+  name          String
+  estimatedCost Int      @default(0)
+  actualCost    Int?
+  isPaid        Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@index([invitationId])
+}
+
+model Vendor {
+  id           String   @id @default(cuid())
+  invitationId String
+  name         String
+  category     String // VENUE | CATERING | DECOR | ATTIRE | DOCUMENTATION | ENTERTAINMENT | OTHER
+  contactName  String?
+  phone        String?
+  email        String?
+  price        Int?
+  status       String   @default("CONTACTED") // CONTACTED | NEGOTIATING | BOOKED | PAID | CANCELLED
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@index([invitationId])
+}
+
+model ChecklistItem {
+  id           String    @id @default(cuid())
+  invitationId String
+  title        String
+  phase        String    @default("GENERAL") // 12_MONTHS | 6_MONTHS | 3_MONTHS | 1_MONTH | 1_WEEK | DAY_OF | GENERAL
+  dueDate      DateTime?
+  isDone       Boolean   @default(false)
+  completedAt  DateTime?
+  notes        String?
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@index([invitationId])
+}
+
+model SeatingTable {
+  id           String   @id @default(cuid())
+  invitationId String
+  name         String
+  capacity     Int      @default(8)
+  shape        String   @default("ROUND") // ROUND | RECTANGLE
+  // Canvas coordinates as a percentage of the layout area, so the plan reflows
+  // correctly on any screen size.
+  positionX    Int      @default(50)
+  positionY    Int      @default(50)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  guests     Guest[]
+
+  @@index([invitationId])
 }

@@ -15,10 +15,16 @@ export const authOptions: NextAuthOptions = {
     newUser: '/dashboard',
   },
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
+    // Google provider is only registered when credentials are configured,
+    // so NextAuth doesn't expose a broken "Sign in with Google" flow.
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -30,8 +36,9 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email dan password wajib diisi');
         }
 
+        // Emails are stored lower-cased at registration, so normalise here too.
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: credentials.email.trim().toLowerCase() },
         });
 
         if (!user || !user.hashedPassword) {
@@ -59,12 +66,25 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.subscriptionTier = user.subscriptionTier;
       }
+
+      // Refresh subscriptionTier/role from DB after client calls session update() (e.g. post-payment)
+      if (trigger === 'update' && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, subscriptionTier: true },
+        });
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.subscriptionTier = dbUser.subscriptionTier;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

@@ -1,171 +1,115 @@
 import crypto from 'crypto';
+import type { PrismaClient } from '@prisma/client';
+import { SUBSCRIPTION_TIERS } from '@/lib/constants';
+
+export type PaidPlan = 'STARTER' | 'PREMIUM' | 'BUSINESS';
+
+/** Shape of the fields we rely on from Midtrans status/notification payloads. */
+export type MidtransStatus = {
+  transaction_status?: string;
+  fraud_status?: string;
+  gross_amount?: string;
+  status_code?: string;
+  order_id?: string;
+  signature_key?: string;
+};
 
 /**
- * Read at call time, not module load, so the production guard reflects the
- * environment actually in effect rather than whatever was set when the module
- * was first imported.
+ * Resolves a paid plan from a stored payment amount.
+ *
+ * Matching is exact against the configured tier prices so an arbitrary amount
+ * can never be rounded up into a higher tier.
  */
-function isProduction(): boolean {
-  return process.env.MIDTRANS_IS_PRODUCTION === 'true';
+export function planFromAmount(amount: number): PaidPlan | null {
+  const plans: PaidPlan[] = ['BUSINESS', 'PREMIUM', 'STARTER'];
+  return plans.find((plan) => SUBSCRIPTION_TIERS[plan].price === amount) ?? null;
 }
 
-function snapBase(): string {
-  return isProduction() ? 'https://app.midtrans.com' : 'https://app.sandbox.midtrans.com';
-}
-
-function apiBase(): string {
-  return isProduction() ? 'https://api.midtrans.com' : 'https://api.sandbox.midtrans.com';
-}
-
-export function getServerKey(): string {
-  return process.env.MIDTRANS_SERVER_KEY ?? '';
-}
-
-export function isMidtransConfigured(): boolean {
-  return getServerKey().length > 0;
-}
-
-/**
- * Demo mode lets the app be exercised end-to-end without a payment gateway.
- * It must be opted into explicitly and is refused in production so a
- * misconfigured deploy can never hand out paid plans for free.
- */
-export function isDemoPaymentMode(): boolean {
-  return (
-    process.env.PAYMENT_DEMO_MODE === 'true' &&
-    process.env.NODE_ENV !== 'production' &&
-    !isProduction()
-  );
-}
-
-function authHeader(): string {
-  return `Basic ${Buffer.from(`${getServerKey()}:`).toString('base64')}`;
-}
-
-export interface SnapTransactionInput {
-  orderId: string;
-  amount: number;
-  customerName?: string | null;
-  customerEmail?: string | null;
-  itemName: string;
-}
-
-export interface SnapTransactionResult {
-  token: string;
-  redirectUrl: string;
-}
-
-/** Creates a Snap transaction and returns the token the browser widget needs. */
-export async function createSnapTransaction(
-  input: SnapTransactionInput
-): Promise<SnapTransactionResult> {
-  const response = await fetch(`${snapBase()}/snap/v1/transactions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: authHeader(),
-    },
-    body: JSON.stringify({
-      transaction_details: {
-        order_id: input.orderId,
-        gross_amount: input.amount,
-      },
-      item_details: [
-        {
-          id: input.orderId,
-          price: input.amount,
-          quantity: 1,
-          name: input.itemName.slice(0, 50),
-        },
-      ],
-      customer_details: {
-        first_name: input.customerName?.slice(0, 50) || 'Pelanggan',
-        email: input.customerEmail || undefined,
-      },
-      credit_card: { secure: true },
-    }),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new Error(`Midtrans Snap error ${response.status}: ${detail.slice(0, 200)}`);
+/** True only when the gateway reports the transaction as genuinely settled. */
+export function isSettled(status: MidtransStatus): boolean {
+  if (status.transaction_status === 'capture') {
+    return status.fraud_status === 'accept';
   }
-
-  const data = (await response.json()) as { token: string; redirect_url: string };
-  return { token: data.token, redirectUrl: data.redirect_url };
-}
-
-export interface TransactionStatus {
-  orderId: string;
-  transactionStatus: string;
-  fraudStatus?: string;
-  grossAmount: string;
-  statusCode: string;
-  signatureKey?: string;
-}
-
-/** Asks Midtrans for the authoritative status of an order. */
-export async function fetchTransactionStatus(
-  orderId: string
-): Promise<TransactionStatus | null> {
-  const response = await fetch(`${apiBase()}/v2/${encodeURIComponent(orderId)}/status`, {
-    headers: { Accept: 'application/json', Authorization: authHeader() },
-  });
-
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(`Midtrans status error ${response.status}`);
-  }
-
-  const data = (await response.json()) as Record<string, string>;
-  return {
-    orderId: data.order_id,
-    transactionStatus: data.transaction_status,
-    fraudStatus: data.fraud_status,
-    grossAmount: data.gross_amount,
-    statusCode: data.status_code,
-    signatureKey: data.signature_key,
-  };
-}
-
-/** A transaction counts as paid only when settled, or captured without fraud suspicion. */
-export function isPaidStatus(status: {
-  transactionStatus: string;
-  fraudStatus?: string;
-}): boolean {
-  if (status.transactionStatus === 'settlement') return true;
-  if (status.transactionStatus === 'capture') return status.fraudStatus === 'accept';
-  return false;
-}
-
-export function isFailedStatus(transactionStatus: string): boolean {
-  return ['cancel', 'deny', 'expire', 'failure'].includes(transactionStatus);
+  return status.transaction_status === 'settlement';
 }
 
 /**
- * Verifies a webhook payload really came from Midtrans.
- * Signature is SHA512(order_id + status_code + gross_amount + server_key).
+ * Verifies a Midtrans notification signature.
+ *
+ * Returns false when the server key is missing — without it there is nothing to
+ * verify against and every payload would otherwise be trivially forgeable.
  */
-export function verifyWebhookSignature(payload: {
-  order_id: string;
-  status_code: string;
-  gross_amount: string;
-  signature_key: string;
-}): boolean {
-  const serverKey = getServerKey();
-  if (!serverKey || !payload.signature_key) return false;
+export function verifyMidtransSignature(
+  body: MidtransStatus,
+  serverKey: string
+): boolean {
+  if (!serverKey) return false;
+
+  const { order_id, status_code, gross_amount, signature_key } = body;
+  if (!order_id || !status_code || !gross_amount || !signature_key) {
+    return false;
+  }
 
   const expected = crypto
     .createHash('sha512')
-    .update(
-      `${payload.order_id}${payload.status_code}${payload.gross_amount}${serverKey}`
-    )
+    .update(`${order_id}${status_code}${gross_amount}${serverKey}`)
     .digest('hex');
 
-  const provided = payload.signature_key;
-  if (provided.length !== expected.length) return false;
+  const received = Buffer.from(signature_key, 'utf8');
+  const expectedBuf = Buffer.from(expected, 'utf8');
 
-  // Constant-time compare so a mismatch cannot be narrowed down by timing.
-  return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  // timingSafeEqual throws on length mismatch, so compare lengths first.
+  if (received.length !== expectedBuf.length) return false;
+  return crypto.timingSafeEqual(received, expectedBuf);
+}
+
+/**
+ * Marks a payment paid, upgrades the user and opens a subscription window.
+ *
+ * Runs in a single transaction and is idempotent: the payment update is
+ * conditional on the row still being PENDING, so concurrent webhook retries and
+ * client confirmations cannot stack duplicate subscriptions.
+ */
+export async function activateSubscription(
+  prisma: PrismaClient,
+  paymentId: string,
+  userId: string,
+  plan: PaidPlan
+): Promise<boolean> {
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + SUBSCRIPTION_TIERS[plan].durationMonths);
+
+  return prisma.$transaction(async (tx) => {
+    const claimed = await tx.payment.updateMany({
+      where: { id: paymentId, status: { not: 'PAID' } },
+      data: { status: 'PAID' },
+    });
+
+    // Another request already activated this payment.
+    if (claimed.count === 0) return false;
+
+    await tx.user.update({
+      where: { id: userId },
+      data: { subscriptionTier: plan },
+    });
+
+    // Supersede any previous active subscription so only one stays ACTIVE.
+    await tx.subscription.updateMany({
+      where: { userId, status: 'ACTIVE' },
+      data: { status: 'EXPIRED' },
+    });
+
+    await tx.subscription.create({
+      data: {
+        userId,
+        plan,
+        status: 'ACTIVE',
+        paymentId,
+        startsAt: new Date(),
+        expiresAt,
+      },
+    });
+
+    return true;
+  });
 }

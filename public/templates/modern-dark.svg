@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#14161a"/>
+  <rect x="0" y="0" width="400" height="8" fill="#d4af37"/>
+  <text x="200" y="260" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#d4af37">Modern Dark</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#cfcfcf">Template</text>
+</svg>

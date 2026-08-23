@@ -1,17 +1,24 @@
 import { notFound } from 'next/navigation';
-import type { Metadata } from 'next';
 import { headers } from 'next/headers';
+import type { Metadata } from 'next';
 import { prisma } from '@/lib/db';
 import { InvitationRenderer } from '@/components/invitation/invitation-renderer';
 import { formatDate } from '@/lib/utils';
-import { siteConfig } from '@/config/site';
+import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/constants';
 
-/** Shared loader for both the public URL and the personalised guest URL. */
-export async function getPublishedInvitation(slug: string) {
-  const invitation = await prisma.invitation.findUnique({
+/**
+ * Shared loader and renderer for the two public entry points:
+ * `/[slug]` and the personalised `/[slug]/to/[guestSlug]`.
+ * Keeping one implementation means the watermark, expiry and analytics rules
+ * cannot drift between them.
+ */
+export async function getInvitation(slug: string) {
+  return prisma.invitation.findUnique({
     where: { slug },
     include: {
       template: true,
+      // The owner's plan decides whether the watermark is rendered.
+      user: { select: { subscriptionTier: true } },
       wishes: {
         where: { isApproved: true },
         orderBy: { createdAt: 'desc' },
@@ -19,16 +26,32 @@ export async function getPublishedInvitation(slug: string) {
       },
     },
   });
+}
 
-  if (!invitation || invitation.status !== 'PUBLISHED') return null;
-  return invitation;
+type PublicInvitation = NonNullable<Awaited<ReturnType<typeof getInvitation>>>;
+
+/** Published and still inside the active window sold by the plan. */
+export function isLive(
+  invitation: PublicInvitation | null
+): invitation is PublicInvitation {
+  if (!invitation || invitation.status !== 'PUBLISHED') return false;
+  if (invitation.expiresAt && invitation.expiresAt.getTime() < Date.now()) {
+    return false;
+  }
+  return true;
+}
+
+function hasWatermark(tier: string): boolean {
+  const config =
+    SUBSCRIPTION_TIERS[tier as SubscriptionTier] ?? SUBSCRIPTION_TIERS.FREE;
+  return config.hasWatermark;
 }
 
 /**
  * Resolves a guest from their personal link and stamps the first open.
  * Returns null when the link does not belong to this invitation.
  */
-export async function resolveGuest(invitationId: string, personalLink: string) {
+async function resolveGuest(invitationId: string, personalLink: string) {
   const guest = await prisma.guest.findUnique({ where: { personalLink } });
 
   if (!guest || guest.invitationId !== invitationId) return null;
@@ -46,20 +69,17 @@ export async function resolveGuest(invitationId: string, personalLink: string) {
 }
 
 export async function buildInvitationMetadata(slug: string): Promise<Metadata> {
-  const invitation = await getPublishedInvitation(slug);
+  const invitation = await getInvitation(slug);
 
-  if (!invitation) {
-    return {
-      title: 'Undangan Tidak Ditemukan',
-      robots: { index: false, follow: false },
-    };
+  if (!isLive(invitation)) {
+    return { title: 'Undangan Tidak Ditemukan', robots: { index: false, follow: false } };
   }
 
   const couple = `${invitation.brideName} & ${invitation.groomName}`;
   const title = `Undangan Pernikahan ${couple}`;
   const description = invitation.weddingDate
-    ? `${formatDate(invitation.weddingDate)} — Dengan hormat kami mengundang Anda untuk hadir di hari bahagia kami.`
-    : 'Dengan hormat kami mengundang Anda untuk hadir di hari bahagia kami.';
+    ? `${formatDate(invitation.weddingDate)} — Anda diundang untuk merayakan hari bahagia kami`
+    : 'Anda diundang untuk merayakan hari bahagia kami';
 
   // The first gallery photo doubles as the social share image when present.
   let image: string | undefined;
@@ -81,7 +101,7 @@ export async function buildInvitationMetadata(slug: string): Promise<Metadata> {
       description,
       type: 'website',
       locale: 'id_ID',
-      siteName: siteConfig.name,
+      siteName: 'WedInvite',
       url: `/${slug}`,
       ...(image && { images: [{ url: image, alt: couple }] }),
     },
@@ -100,9 +120,9 @@ interface InvitationViewProps {
 }
 
 export async function InvitationView({ slug, personalLink }: InvitationViewProps) {
-  const invitation = await getPublishedInvitation(slug);
+  const invitation = await getInvitation(slug);
 
-  if (!invitation) notFound();
+  if (!isLive(invitation)) notFound();
 
   const guest = personalLink ? await resolveGuest(invitation.id, personalLink) : null;
 
@@ -128,6 +148,7 @@ export async function InvitationView({ slug, personalLink }: InvitationViewProps
       invitation={invitation}
       guestName={guest?.name}
       personalLink={guest?.personalLink}
+      showWatermark={hasWatermark(invitation.user.subscriptionTier)}
     />
   );
 }

@@ -1,85 +1,26 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { nanoid } from 'nanoid';
-import type { PrismaClient } from '@prisma/client';
 import { router, protectedProcedure } from '../trpc';
 import { SUBSCRIPTION_TIERS } from '@/lib/constants';
 import {
-  createSnapTransaction,
-  fetchTransactionStatus,
-  isDemoPaymentMode,
-  isFailedStatus,
-  isMidtransConfigured,
-  isPaidStatus,
+  activateSubscription,
+  isSettled,
+  planFromAmount,
+  type MidtransStatus,
 } from '@/lib/payment';
-
-const PAID_PLANS = ['STARTER', 'PREMIUM', 'BUSINESS'] as const;
-type PaidPlan = (typeof PAID_PLANS)[number];
-
-/** Months of access granted per plan. */
-const PLAN_DURATION_MONTHS: Record<PaidPlan, number> = {
-  STARTER: 6,
-  PREMIUM: 12,
-  BUSINESS: 24,
-};
-
-function expiryFor(plan: PaidPlan, from = new Date()): Date {
-  const expires = new Date(from);
-  expires.setMonth(expires.getMonth() + PLAN_DURATION_MONTHS[plan]);
-  return expires;
-}
-
-/**
- * Grants a plan to a user and marks the payment paid, in one transaction.
- * Idempotent: a payment already marked PAID is left untouched.
- */
-async function activatePlan(
-  prisma: PrismaClient,
-  paymentId: string,
-  plan: PaidPlan
-): Promise<boolean> {
-  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
-  if (!payment || payment.status === 'PAID') return false;
-
-  await prisma.$transaction([
-    prisma.payment.update({ where: { id: paymentId }, data: { status: 'PAID' } }),
-    prisma.user.update({
-      where: { id: payment.userId },
-      data: { subscriptionTier: plan },
-    }),
-    prisma.subscription.create({
-      data: {
-        userId: payment.userId,
-        plan,
-        status: 'ACTIVE',
-        paymentId,
-        startsAt: new Date(),
-        expiresAt: expiryFor(plan),
-      },
-    }),
-  ]);
-
-  return true;
-}
 
 export const paymentRouter = router({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
-    const [user, subscription] = await Promise.all([
-      ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { subscriptionTier: true },
-      }),
-      ctx.prisma.subscription.findFirst({
-        where: { userId: ctx.session.user.id, status: 'ACTIVE' },
-        orderBy: { expiresAt: 'desc' },
-      }),
-    ]);
-
-    return {
-      tier: user?.subscriptionTier ?? 'FREE',
-      subscription,
-      demoMode: isDemoPaymentMode(),
-    };
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { subscriptionTier: true },
+    });
+    const subscription = await ctx.prisma.subscription.findFirst({
+      where: { userId: ctx.session.user.id, status: 'ACTIVE' },
+      orderBy: { expiresAt: 'desc' },
+    });
+    return { tier: user?.subscriptionTier ?? 'FREE', subscription };
   }),
 
   getHistory: protectedProcedure.query(async ({ ctx }) => {
@@ -91,17 +32,17 @@ export const paymentRouter = router({
   }),
 
   createCheckout: protectedProcedure
-    .input(z.object({ plan: z.enum(PAID_PLANS) }))
+    .input(
+      z.object({
+        plan: z.enum(['STARTER', 'PREMIUM', 'BUSINESS']),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const tierInfo = SUBSCRIPTION_TIERS[input.plan];
       const amount = tierInfo.price;
 
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { name: true, email: true },
-      });
-
-      const orderId = `WI-${Date.now()}-${nanoid(6).toUpperCase()}`;
+      // nanoid suffix keeps order ids unique when two checkouts land in the same ms
+      const orderId = `INV-${Date.now()}-${nanoid(6)}`;
 
       const payment = await ctx.prisma.payment.create({
         data: {
@@ -110,68 +51,65 @@ export const paymentRouter = router({
           currency: 'IDR',
           type: 'SUBSCRIPTION',
           status: 'PENDING',
-          gateway: isMidtransConfigured() ? 'MIDTRANS' : 'DEMO',
+          gateway: 'midtrans',
           gatewayReferenceId: orderId,
         },
       });
 
-      // Without a gateway key there is nothing to redirect to; the client
-      // falls back to the demo confirmation path when it is enabled.
-      if (!isMidtransConfigured()) {
-        if (!isDemoPaymentMode()) {
-          throw new TRPCError({
-            code: 'PRECONDITION_FAILED',
-            message:
-              'Pembayaran belum dikonfigurasi. Hubungi admin untuk mengaktifkan gateway pembayaran.',
+      const serverKey = process.env.MIDTRANS_SERVER_KEY ?? '';
+      const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+      const snapBaseUrl = isProduction
+        ? 'https://app.midtrans.com/snap/v1/transactions'
+        : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+
+      let snapToken: string | null = null;
+
+      if (serverKey) {
+        try {
+          const user = await ctx.prisma.user.findUnique({
+            where: { id: ctx.session.user.id },
+            select: { name: true, email: true },
           });
+
+          const response = await fetch(snapBaseUrl, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              Authorization: `Basic ${Buffer.from(`${serverKey}:`).toString('base64')}`,
+            },
+            body: JSON.stringify({
+              transaction_details: { order_id: orderId, gross_amount: amount },
+              customer_details: { first_name: user?.name ?? 'Pelanggan', email: user?.email },
+              item_details: [{ id: input.plan, price: amount, quantity: 1, name: `Paket ${tierInfo.name}` }],
+            }),
+          });
+
+          if (response.ok) {
+            const data = (await response.json()) as { token: string };
+            snapToken = data.token;
+          } else {
+            console.error('[midtrans] Failed to create Snap transaction:', await response.text());
+          }
+        } catch (error) {
+          console.error('[midtrans] Snap API error:', error);
         }
-        return {
-          paymentId: payment.id,
-          orderId,
-          amount,
-          plan: input.plan,
-          snapToken: null,
-          redirectUrl: null,
-          demoMode: true,
-        };
       }
 
-      try {
-        const snap = await createSnapTransaction({
-          orderId,
-          amount,
-          customerName: user?.name,
-          customerEmail: user?.email,
-          itemName: `WedInvite ${tierInfo.name}`,
-        });
-
-        return {
-          paymentId: payment.id,
-          orderId,
-          amount,
-          plan: input.plan,
-          snapToken: snap.token,
-          redirectUrl: snap.redirectUrl,
-          demoMode: false,
-        };
-      } catch (error) {
-        await ctx.prisma.payment.update({
-          where: { id: payment.id },
-          data: { status: 'FAILED' },
-        });
-        console.error('Snap transaction failed:', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Gagal membuat transaksi pembayaran. Silakan coba lagi.',
-        });
-      }
+      return {
+        paymentId: payment.id,
+        orderId,
+        amount,
+        plan: input.plan,
+        snapToken,
+        isProduction,
+      };
     }),
 
-  /**
-   * Confirms a payment after the Snap widget reports success.
-   * The plan is derived from the stored payment and the status is re-checked
-   * against Midtrans, so a client claim alone can never grant a paid plan.
-   */
+  // Verifies a pending payment against the Midtrans API and activates the plan.
+  // The plan is NEVER taken from the client: it is derived from the stored
+  // payment amount, and activation only happens once the gateway reports
+  // the transaction as settled.
   confirmPayment: protectedProcedure
     .input(z.object({ paymentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -179,72 +117,94 @@ export const paymentRouter = router({
         where: { id: input.paymentId },
       });
 
+      // Ownership check: a payment may only be confirmed by the user it belongs to.
       if (!payment || payment.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Transaksi tidak ditemukan' });
+        throw new TRPCError({ code: 'NOT_FOUND' });
       }
 
       if (payment.status === 'PAID') {
         return { success: true, alreadyProcessed: true };
       }
 
-      // The plan comes from the recorded amount, never from client input.
-      const plan = (Object.keys(SUBSCRIPTION_TIERS) as Array<keyof typeof SUBSCRIPTION_TIERS>)
-        .filter((key): key is PaidPlan => PAID_PLANS.includes(key as PaidPlan))
-        .find((key) => SUBSCRIPTION_TIERS[key].price === payment.amount);
-
+      const plan = planFromAmount(payment.amount);
       if (!plan) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Paket tidak dikenali' });
-      }
-
-      if (isMidtransConfigured()) {
-        const status = await fetchTransactionStatus(payment.gatewayReferenceId ?? '');
-
-        if (!status) {
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Transaksi belum ditemukan di gateway pembayaran.',
-          });
-        }
-
-        if (isFailedStatus(status.transactionStatus)) {
-          await ctx.prisma.payment.update({
-            where: { id: payment.id },
-            data: { status: 'FAILED' },
-          });
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Pembayaran gagal atau dibatalkan.' });
-        }
-
-        if (!isPaidStatus(status)) {
-          return { success: false, pending: true };
-        }
-
-        // Guard against an order whose amount was tampered with client-side.
-        if (Math.round(Number(status.grossAmount)) !== payment.amount) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Nominal pembayaran tidak cocok.' });
-        }
-      } else if (!isDemoPaymentMode()) {
         throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Gateway pembayaran belum dikonfigurasi.',
+          code: 'BAD_REQUEST',
+          message: 'Nominal pembayaran tidak dikenali',
         });
       }
 
-      await activatePlan(ctx.prisma, payment.id, plan);
-      return { success: true, alreadyProcessed: false };
-    }),
+      const serverKey = process.env.MIDTRANS_SERVER_KEY ?? '';
 
-  /** Polls the gateway for a pending payment so the UI can update without a webhook. */
-  checkStatus: protectedProcedure
-    .input(z.object({ paymentId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const payment = await ctx.prisma.payment.findUnique({
-        where: { id: input.paymentId },
-      });
-
-      if (!payment || payment.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Transaksi tidak ditemukan' });
+      // Without a gateway key there is nothing to verify against, so we must not
+      // grant a paid plan. The webhook remains the only path that can activate one.
+      if (!serverKey) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message:
+            'Gateway pembayaran belum dikonfigurasi. Hubungi administrator.',
+        });
       }
 
-      return { status: payment.status, amount: payment.amount };
+      if (!payment.gatewayReferenceId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Referensi pembayaran tidak ditemukan',
+        });
+      }
+
+      const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+      const statusBaseUrl = isProduction
+        ? 'https://api.midtrans.com/v2'
+        : 'https://api.sandbox.midtrans.com/v2';
+
+      let status: MidtransStatus;
+      try {
+        const response = await fetch(
+          `${statusBaseUrl}/${encodeURIComponent(payment.gatewayReferenceId)}/status`,
+          {
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Basic ${Buffer.from(`${serverKey}:`).toString('base64')}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          console.error(
+            '[midtrans] Status check failed:',
+            await response.text()
+          );
+          throw new Error('status check failed');
+        }
+
+        status = (await response.json()) as MidtransStatus;
+      } catch (error) {
+        console.error('[midtrans] Status API error:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Gagal memverifikasi pembayaran ke gateway',
+        });
+      }
+
+      if (!isSettled(status)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Pembayaran belum lunas',
+        });
+      }
+
+      // Guard against a tampered/mismatched amount at the gateway.
+      const paidAmount = Number.parseFloat(status.gross_amount ?? '0');
+      if (!Number.isFinite(paidAmount) || paidAmount < payment.amount) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Nominal pembayaran tidak sesuai',
+        });
+      }
+
+      await activateSubscription(ctx.prisma, payment.id, payment.userId, plan);
+
+      return { success: true, alreadyProcessed: false };
     }),
 });

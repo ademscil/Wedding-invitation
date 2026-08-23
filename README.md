@@ -1,190 +1,145 @@
-# WedInvite
+# WedInvite - Undangan Pernikahan Digital
 
-Platform SaaS undangan pernikahan digital untuk pasar Indonesia. Dibangun dengan
-Next.js 14 (App Router), TypeScript, Prisma, tRPC, dan Tailwind CSS.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/ademscil/Wedding-invitation/actions/workflows/ci.yml/badge.svg)](https://github.com/ademscil/Wedding-invitation/actions/workflows/ci.yml)
 
----
+Platform SaaS undangan pernikahan digital yang memungkinkan pasangan membuat, mengelola, dan membagikan undangan pernikahan secara online.
 
-## Menjalankan di Lokal
+Open source under the [MIT License](LICENSE) — contributions welcome, see [Contributing](#contributing) below.
 
-Prasyarat: Node.js 18.18+ dan npm.
+## Tech Stack
+
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS + Framer Motion
+- **Database:** PostgreSQL via Prisma ORM (driver adapter: `@prisma/adapter-pg`)
+- **Auth:** NextAuth.js v4
+- **API:** tRPC v10
+- **State:** Zustand
+- **Forms:** React Hook Form + Zod
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm
+- A PostgreSQL database (free options: [Neon](https://neon.tech), [Supabase](https://supabase.com), or [Vercel Postgres](https://vercel.com/storage/postgres))
+
+### Setup
 
 ```bash
-# 1. Install dependensi
+# Install dependencies
 npm install
 
-# 2. Siapkan environment
+# Copy environment variables and fill in DATABASE_URL with your Postgres connection string
 cp .env.example .env.local
-```
 
-Buka `.env.local` dan isi **satu nilai wajib**:
-
-```bash
-# Generate dengan: openssl rand -base64 32
-NEXTAUTH_SECRET="hasil-generate-di-sini"
-```
-
-Semua nilai lain sudah punya default yang bekerja untuk pengembangan lokal.
-
-```bash
-# 3. Buat database dan isi data awal
+# Generate Prisma client & push schema to your database
+npx prisma generate
 npx prisma db push
-npm run db:seed
 
-# 4. Jalankan
+# Seed database with templates
+npx prisma db seed
+
+# Start development server
 npm run dev
 ```
 
-Buka http://localhost:3000
+Visit [http://localhost:3000](http://localhost:3000)
 
-### Akun admin
+### Environment Variables
 
-`npm run db:seed` membuat satu akun admin:
+Copy `.env.example` to `.env.local` and fill in the values you need. The app runs locally with only `DATABASE_URL` and `NEXTAUTH_SECRET` set — everything else is optional and degrades gracefully when left empty.
 
-| Email | Password |
-| --- | --- |
-| `admin@wedinvite.local` | `admin12345` |
+| Variable | Required for | Notes |
+|---|---|---|
+| `DATABASE_URL` | Always | PostgreSQL connection string (Neon, Supabase, Vercel Postgres, or self-hosted) |
+| `NEXTAUTH_URL` / `NEXTAUTH_SECRET` | Always | `openssl rand -base64 32` to generate a secret |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in | From Google Cloud Console OAuth credentials |
+| `NEXT_PUBLIC_ENABLE_GOOGLE_AUTH` | Google sign-in | Set to `"true"` to show the Google button once credentials are set |
+| `UPLOADTHING_TOKEN` | Photo/music upload | From [uploadthing.com](https://uploadthing.com/dashboard) |
+| `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Email notifications | From [resend.com](https://resend.com/api-keys) |
+| `MIDTRANS_SERVER_KEY` / `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` | Paid subscriptions | Sandbox keys from [Midtrans dashboard](https://dashboard.sandbox.midtrans.com/settings/access-keys) |
 
-Login lalu buka `/admin`. Ubah kredensial ini lewat `SEED_ADMIN_EMAIL` dan
-`SEED_ADMIN_PASSWORD` sebelum seed, dan ganti passwordnya setelah login pertama.
-
-### Mode demo pembayaran
-
-`PAYMENT_DEMO_MODE="true"` (default di `.env.example`) membuat tombol upgrade
-langsung mengaktifkan paket tanpa gateway pembayaran, sehingga fitur berbayar
-bisa dicoba lokal. Mode ini **ditolak otomatis** saat `NODE_ENV=production`
-atau `MIDTRANS_IS_PRODUCTION=true`, jadi tidak bisa aktif di deployment live.
-
----
-
-## Perintah
-
-| Perintah | Kegunaan |
-| --- | --- |
-| `npm run dev` | Server pengembangan |
-| `npm run build` | Build produksi |
-| `npm run start` | Jalankan hasil build |
-| `npm run lint` | ESLint |
-| `npm run type-check` | Pengecekan tipe TypeScript |
-| `npm run test` | Unit test (Vitest) |
-| `npm run db:push` | Terapkan skema ke database |
-| `npm run db:seed` | Isi template + akun admin |
-| `npm run db:studio` | Prisma Studio |
-
----
-
-## Struktur
+## Project Structure
 
 ```
 src/
-  app/
-    (marketing)/      Landing, harga
-    (auth)/           Login, register
-    (dashboard)/      Area pengguna
-    (admin)/          Back-office admin
-    (invitation)/
-      [slug]/                    Halaman undangan publik
-      [slug]/to/[guestSlug]/     Link personal per tamu
-    api/
-      trpc/[trpc]/    Endpoint tRPC
-      webhooks/payment/          Notifikasi Midtrans
-  components/
-    ui/               Komponen dasar
-    invitation/sections/         Bagian undangan (cover, RSVP, galeri, dll)
-    dashboard/        Komponen dashboard
-  server/
-    trpc.ts           Setup tRPC + helper otorisasi
-    routers/          Router per domain
-  templates/          10 template undangan
-  lib/
-    subscription.ts   Feature gating per paket
-    invitation-data.ts Parser kolom JSON undangan
-    payment.ts        Integrasi Midtrans
-    guest-utils.ts    Import/export tamu, QR, WhatsApp
+  app/              # Next.js App Router pages
+    (marketing)/    # Landing page & pricing
+    (auth)/         # Login & register
+    (dashboard)/    # User dashboard
+    (invitation)/   # Public invitation pages
+    api/            # API routes (auth, tRPC)
+  components/       # React components
+    ui/             # Base UI components
+    marketing/      # Landing page components
+    dashboard/      # Dashboard components
+    invitation/     # Invitation sections
+  templates/        # Wedding invitation templates
+  server/           # tRPC server & routers
+  lib/              # Utilities, auth, validation
+  hooks/            # Custom React hooks
+  stores/           # Zustand state stores
+  types/            # TypeScript types
 prisma/
-  schema.prisma       Skema database
-  seed.ts             Data awal
+  schema.prisma     # Database schema
+  seed.ts           # Template seed data
 ```
 
----
+## Available Scripts
 
-## Cara Kerja
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run lint` | Run ESLint |
+| `npm run db:generate` | Generate Prisma client |
+| `npm run db:push` | Push schema to database |
+| `npm run db:seed` | Seed database |
+| `npm run db:studio` | Open Prisma Studio |
+| `npm run type-check` | TypeScript type check |
 
-### Undangan
+## Branching Strategy & CI/CD
 
-Data yang bentuknya bervariasi (acara, rekening, galeri, love story, pengaturan)
-disimpan sebagai kolom JSON di tabel `Invitation`. Semua pembacaan melewati
-`src/lib/invitation-data.ts`, yang menormalkan bentuk lama maupun baru sehingga
-undangan yang dibuat sebelum perubahan skema tetap tampil benar.
+| Branch | Purpose | Deploys to |
+|---|---|---|
+| `main` | Production-ready code only | Vercel Production (`saas-wedding-two.vercel.app`) |
+| `staging` | Pre-production integration testing | Vercel Preview deployment |
+| `development` | Active day-to-day development | Vercel Preview deployment |
+| `claude/*`, feature branches | Short-lived work branches | Vercel Preview deployment (PR into `development`) |
 
-### Link personal tamu
+Workflow:
+1. Branch off `development` for new work, open a PR back into `development`.
+2. Periodically merge `development` → `staging` to validate a release candidate.
+3. Merge `staging` → `main` to ship to production.
 
-Setiap tamu punya `personalLink` unik. URL-nya:
+GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, type-check, unit tests, and a production build on every push/PR to `main`, `staging`, and `development`. Vercel's Git integration automatically deploys pushes to `main` to Production and all other branches/PRs as Preview deployments.
 
-```
-https://domain.com/{slug-undangan}/to/{personalLink}
-```
+## Features
 
-Membuka link ini menyapa tamu dengan namanya, mencatat waktu buka pertama, dan
-mengaitkan RSVP ke record tamu tersebut. Bentuk lama `?to={personalLink}` masih
-didukung. QR code, tombol WhatsApp, dan salin-link semuanya memakai URL yang
-sama lewat `buildGuestUrl()`.
+- Multiple premium wedding invitation templates
+- RSVP management with guest tracking
+- Digital envelope (bank transfer details)
+- Photo gallery & love story timeline
+- Countdown timer
+- Guestbook / wishes
+- Background music
+- WhatsApp sharing with OG preview
+- Analytics dashboard
+- Multi-tier subscription (Free, Starter, Premium, Business)
 
-### Paket langganan
+## Contributing
 
-Batas per paket didefinisikan di `src/lib/constants.ts` dan **ditegakkan di
-server** melalui `src/lib/subscription.ts` — `assertQuota()` untuk batas jumlah
-dan `assertFeature()` untuk fitur. Tier selalu dibaca dari database, tidak dari
-JWT, sehingga perubahan paket langsung berlaku.
+Contributions are welcome!
 
-### Pembayaran
+1. Fork the repo and create a feature branch
+2. Run `npm run lint`, `npm run type-check`, and `npm test` before opening a PR
+3. Open a pull request describing the change
 
-Alur upgrade memakai Midtrans Snap. Status pembayaran tidak pernah dipercaya
-dari klien: `confirmPayment` memverifikasi ulang ke API Midtrans, dan webhook
-memvalidasi signature SHA512 serta mencocokkan nominal sebelum mengaktifkan
-paket. Paket ditentukan dari nominal yang tercatat, bukan dari input pemanggil.
+Please don't commit real API keys or secrets — use `.env.example` as the template and keep `.env.local` untracked.
 
----
+## License
 
-## Deployment Produksi
-
-1. **Database** — ganti provider di `prisma/schema.prisma`:
-
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-   }
-   ```
-
-   Lalu set `DATABASE_URL` ke connection string PostgreSQL.
-
-2. **Environment** — set `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, dan
-   `NEXT_PUBLIC_APP_URL` ke domain produksi. Pastikan `PAYMENT_DEMO_MODE`
-   tidak diset ke `true`.
-
-3. **Midtrans** — isi `MIDTRANS_SERVER_KEY`,
-   `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, dan set `MIDTRANS_IS_PRODUCTION="true"`.
-   Arahkan *Payment Notification URL* di dashboard Midtrans ke:
-
-   ```
-   https://domain-anda.com/api/webhooks/payment
-   ```
-
-4. **Google OAuth** (opsional) — isi `GOOGLE_CLIENT_ID` dan
-   `GOOGLE_CLIENT_SECRET`, dan daftarkan redirect URI
-   `https://domain-anda.com/api/auth/callback/google`.
-
----
-
-## Yang Belum Terpasang
-
-Fitur berikut punya slot konfigurasi tapi belum terhubung ke layanan:
-
-- **Upload file** — galeri dan foto mempelai diisi dengan URL. Integrasi
-  UploadThing (`UPLOADTHING_SECRET`) belum dipasang.
-- **Email transaksional** — `RESEND_API_KEY` belum dipakai; verifikasi email
-  dan reset password belum tersedia.
-- **Custom domain** — ada di daftar fitur paket dan kolom database, tapi
-  routing domain kustom belum diimplementasikan.
-- **Thumbnail template** — `/public/templates/*.jpg` belum ada, sehingga kartu
-  template menampilkan placeholder.
+This project is licensed under the [MIT License](LICENSE).

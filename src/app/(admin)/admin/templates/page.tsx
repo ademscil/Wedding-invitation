@@ -51,6 +51,7 @@ export default function AdminTemplatesPage() {
                       <td className="py-3 pr-4">
                         <input
                           type="checkbox"
+                          aria-label={`Tandai ${tpl.name} sebagai premium`}
                           checked={tpl.isPremium}
                           onChange={(e) =>
                             updateTemplate.mutate({ id: tpl.id, isPremium: e.target.checked })
@@ -64,6 +65,7 @@ export default function AdminTemplatesPage() {
                       <td className="py-3">
                         <input
                           type="checkbox"
+                          aria-label={`Aktifkan ${tpl.name}`}
                           checked={tpl.isActive}
                           onChange={(e) =>
                             updateTemplate.mutate({ id: tpl.id, isActive: e.target.checked })

@@ -148,6 +148,7 @@ export function RsvpSection({
               {/* Name */}
               <div>
                 <label
+                  htmlFor="rsvp-name"
                   className="mb-1.5 block text-xs uppercase tracking-wider"
                   style={{
                     color: theme.colors.textMuted,
@@ -157,7 +158,10 @@ export function RsvpSection({
                   Nama
                 </label>
                 <input
+                  id="rsvp-name"
+                  name="rsvp-name"
                   type="text"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nama lengkap Anda"
@@ -219,6 +223,7 @@ export function RsvpSection({
                   transition={{ duration: 0.3 }}
                 >
                   <label
+                    htmlFor="rsvp-guest-count"
                     className="mb-1.5 block text-xs uppercase tracking-wider"
                     style={{
                       color: theme.colors.textMuted,
@@ -228,6 +233,8 @@ export function RsvpSection({
                     Jumlah Tamu
                   </label>
                   <select
+                    id="rsvp-guest-count"
+                    name="rsvp-guest-count"
                     value={guestCount}
                     onChange={(e) => setGuestCount(Number(e.target.value))}
                     className="w-full rounded-lg border bg-transparent px-4 py-3 text-sm outline-none"
@@ -249,6 +256,7 @@ export function RsvpSection({
               {/* Dietary Notes */}
               <div>
                 <label
+                  htmlFor="rsvp-notes"
                   className="mb-1.5 block text-xs uppercase tracking-wider"
                   style={{
                     color: theme.colors.textMuted,
@@ -258,6 +266,8 @@ export function RsvpSection({
                   Catatan (opsional)
                 </label>
                 <textarea
+                  id="rsvp-notes"
+                  name="rsvp-notes"
                   value={dietaryNotes}
                   onChange={(e) => setDietaryNotes(e.target.value)}
                   placeholder="Alergi makanan, preferensi khusus, dll."

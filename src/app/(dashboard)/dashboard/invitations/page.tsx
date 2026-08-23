@@ -5,10 +5,17 @@ import { Plus, Mail } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { InvitationCard } from '@/components/dashboard/invitation-card';
 
 export default function InvitationsPage() {
-  const { data: invitations, isLoading } = trpc.invitation.list.useQuery();
+  const {
+    data: invitations,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = trpc.invitation.list.useQuery();
 
   return (
     <div className="space-y-6">
@@ -29,7 +36,9 @@ export default function InvitationsPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      ) : isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="space-y-3">

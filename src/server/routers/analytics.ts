@@ -1,72 +1,46 @@
 import { z } from 'zod';
-import { subDays } from 'date-fns';
-import { router, publicProcedure, protectedProcedure, requireOwnedInvitation } from '../trpc';
-import { assertFeature, getUserTier } from '@/lib/subscription';
-
-const EVENT_TYPES = [
-  'PAGE_VIEW',
-  'RSVP_SUBMIT',
-  'WISH_SUBMIT',
-  'GIFT_CLICK',
-  'MUSIC_PLAY',
-  'SHARE',
-] as const;
-
-/** Classifies a user-agent string into a coarse device bucket. */
-function deviceFromUserAgent(ua: string | null | undefined): string {
-  if (!ua) return 'Lainnya';
-  if (/iPad|Tablet/i.test(ua)) return 'Tablet';
-  if (/Mobi|Android|iPhone/i.test(ua)) return 'Mobile';
-  return 'Desktop';
-}
-
-/** Reduces a referrer URL to its hostname, or labels it as direct traffic. */
-function referrerLabel(referrer: string | null | undefined): string {
-  if (!referrer) return 'Langsung';
-  try {
-    const host = new URL(referrer).hostname.replace(/^www\./, '');
-    if (/wa\.me|whatsapp/i.test(host)) return 'WhatsApp';
-    if (/instagram/i.test(host)) return 'Instagram';
-    if (/facebook|fb\./i.test(host)) return 'Facebook';
-    return host;
-  } catch {
-    return 'Lainnya';
-  }
-}
+import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { assertOwnsInvitation } from '../lib/authorize';
+import { checkRateLimit } from '../lib/rate-limit';
+import { assertFeature } from '../lib/limits';
 
 export const analyticsRouter = router({
   track: publicProcedure
     .input(
       z.object({
         invitationSlug: z.string(),
-        eventType: z.enum(EVENT_TYPES),
-        metadata: z.string().max(1000).optional(),
+        eventType: z.enum([
+          'PAGE_VIEW',
+          'RSVP_SUBMIT',
+          'WISH_SUBMIT',
+          'GIFT_CLICK',
+          'MUSIC_PLAY',
+          'SHARE',
+        ]),
+        metadata: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const invitation = await ctx.prisma.invitation.findUnique({
-        where: { slug: input.invitationSlug },
-        select: { id: true, status: true },
+      // Tracking is fire-and-forget, so drop excess events silently rather than
+      // erroring — otherwise inflated view counts would be trivial to produce.
+      const { allowed } = checkRateLimit(`track:${ctx.ip}:${input.invitationSlug}`, {
+        limit: 30,
+        windowMs: 60_000,
       });
 
-      if (!invitation || invitation.status !== 'PUBLISHED') {
-        return { success: false };
-      }
+      if (!allowed) return { success: false };
 
-      const headers = ctx.req?.headers;
+      const invitation = await ctx.prisma.invitation.findUnique({
+        where: { slug: input.invitationSlug },
+      });
+
+      if (!invitation) return { success: false };
 
       await ctx.prisma.analyticsEvent.create({
         data: {
           invitationId: invitation.id,
           eventType: input.eventType,
           metadata: input.metadata,
-          userAgent: headers?.get('user-agent') ?? null,
-          referrer: headers?.get('referer') ?? null,
-          // Trust the left-most forwarded address; behind a proxy this is the client.
-          visitorIp:
-            headers?.get('x-forwarded-for')?.split(',')[0].trim() ??
-            headers?.get('x-real-ip') ??
-            null,
         },
       });
 
@@ -76,55 +50,57 @@ export const analyticsRouter = router({
   getStats: protectedProcedure
     .input(z.object({ invitationId: z.string() }))
     .query(async ({ ctx, input }) => {
-      await requireOwnedInvitation(ctx, input.invitationId);
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
+      await assertFeature(ctx.prisma, ctx.session.user.id, 'hasAnalytics');
 
-      const tier = await getUserTier(ctx.prisma, ctx.session.user.id);
-      assertFeature(tier, 'hasAnalytics');
-
-      const where = { invitationId: input.invitationId };
-
-      const [totalViews, totalRsvps, totalWishes, totalGiftClicks, totalShares] =
+      const [totalViews, totalRsvps, totalWishes, totalGiftClicks] =
         await Promise.all([
-          ctx.prisma.analyticsEvent.count({ where: { ...where, eventType: 'PAGE_VIEW' } }),
-          ctx.prisma.analyticsEvent.count({ where: { ...where, eventType: 'RSVP_SUBMIT' } }),
-          ctx.prisma.analyticsEvent.count({ where: { ...where, eventType: 'WISH_SUBMIT' } }),
-          ctx.prisma.analyticsEvent.count({ where: { ...where, eventType: 'GIFT_CLICK' } }),
-          ctx.prisma.analyticsEvent.count({ where: { ...where, eventType: 'SHARE' } }),
+          ctx.prisma.analyticsEvent.count({
+            where: {
+              invitationId: input.invitationId,
+              eventType: 'PAGE_VIEW',
+            },
+          }),
+          ctx.prisma.analyticsEvent.count({
+            where: {
+              invitationId: input.invitationId,
+              eventType: 'RSVP_SUBMIT',
+            },
+          }),
+          ctx.prisma.analyticsEvent.count({
+            where: {
+              invitationId: input.invitationId,
+              eventType: 'WISH_SUBMIT',
+            },
+          }),
+          ctx.prisma.analyticsEvent.count({
+            where: {
+              invitationId: input.invitationId,
+              eventType: 'GIFT_CLICK',
+            },
+          }),
         ]);
 
-      // Only the last 30 days feed the chart, so a long-lived invitation
-      // does not drag the whole event table into memory.
-      const since = subDays(new Date(), 30);
-      const recentEvents = await ctx.prisma.analyticsEvent.findMany({
-        where: { ...where, eventType: 'PAGE_VIEW', createdAt: { gte: since } },
+      const recentViews = await ctx.prisma.analyticsEvent.findMany({
+        where: {
+          invitationId: input.invitationId,
+          eventType: 'PAGE_VIEW',
+        },
         orderBy: { createdAt: 'desc' },
-        take: 5000,
-        select: { createdAt: true, userAgent: true, referrer: true },
+        take: 100,
+        select: { createdAt: true },
       });
-
-      const deviceCounts = new Map<string, number>();
-      const referrerCounts = new Map<string, number>();
-      for (const event of recentEvents) {
-        const device = deviceFromUserAgent(event.userAgent);
-        const source = referrerLabel(event.referrer);
-        deviceCounts.set(device, (deviceCounts.get(device) ?? 0) + 1);
-        referrerCounts.set(source, (referrerCounts.get(source) ?? 0) + 1);
-      }
-
-      const toSortedList = (map: Map<string, number>) =>
-        [...map.entries()]
-          .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value);
 
       return {
         totalViews,
         totalRsvps,
         totalWishes,
         totalGiftClicks,
-        totalShares,
-        recentViews: recentEvents.map((e) => ({ createdAt: e.createdAt })),
-        devices: toSortedList(deviceCounts),
-        referrers: toSortedList(referrerCounts).slice(0, 6),
+        recentViews,
       };
     }),
 });

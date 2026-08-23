@@ -1,117 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { SUBSCRIPTION_TIERS } from '@/lib/constants';
 import {
-  isFailedStatus,
-  isMidtransConfigured,
-  isPaidStatus,
-  verifyWebhookSignature,
+  activateSubscription,
+  isSettled,
+  planFromAmount,
+  verifyMidtransSignature,
+  type MidtransStatus,
 } from '@/lib/payment';
 
-const PAID_PLANS = ['STARTER', 'PREMIUM', 'BUSINESS'] as const;
-type PaidPlan = (typeof PAID_PLANS)[number];
-
-const PLAN_DURATION_MONTHS: Record<PaidPlan, number> = {
-  STARTER: 6,
-  PREMIUM: 12,
-  BUSINESS: 24,
-};
-
-/** Resolves the plan from the recorded amount rather than anything in the payload. */
-function planForAmount(amount: number): PaidPlan | null {
-  return PAID_PLANS.find((plan) => SUBSCRIPTION_TIERS[plan].price === amount) ?? null;
-}
-
+// Midtrans payment notification webhook
 export async function POST(req: NextRequest) {
-  if (!isMidtransConfigured()) {
-    return NextResponse.json({ message: 'Gateway not configured' }, { status: 503 });
-  }
-
-  let body: Record<string, string>;
   try {
-    body = (await req.json()) as Record<string, string>;
-  } catch {
-    return NextResponse.json({ message: 'Invalid payload' }, { status: 400 });
-  }
+    const body = (await req.json()) as MidtransStatus;
+    const serverKey = process.env.MIDTRANS_SERVER_KEY ?? '';
 
-  const { order_id, transaction_status, fraud_status, signature_key, gross_amount, status_code } =
-    body;
+    // Reject outright when no server key is configured: an empty key would make
+    // the signature reproducible by anyone and let callers grant themselves plans.
+    if (!serverKey) {
+      console.error('[webhook] MIDTRANS_SERVER_KEY is not configured');
+      return NextResponse.json(
+        { message: 'Gateway not configured' },
+        { status: 503 }
+      );
+    }
 
-  if (!order_id || !transaction_status || !signature_key || !gross_amount || !status_code) {
-    return NextResponse.json({ message: 'Missing fields' }, { status: 400 });
-  }
+    if (!verifyMidtransSignature(body, serverKey)) {
+      return NextResponse.json({ message: 'Invalid signature' }, { status: 401 });
+    }
 
-  if (
-    !verifyWebhookSignature({
-      order_id,
-      status_code,
-      gross_amount,
-      signature_key,
-    })
-  ) {
-    return NextResponse.json({ message: 'Invalid signature' }, { status: 401 });
-  }
+    const orderId = body.order_id;
+    if (!orderId) {
+      return NextResponse.json({ message: 'Missing order_id' }, { status: 400 });
+    }
 
-  try {
     const payment = await prisma.payment.findFirst({
-      where: { gatewayReferenceId: order_id },
+      where: { gatewayReferenceId: orderId },
     });
 
     if (!payment) {
       return NextResponse.json({ message: 'Payment not found' }, { status: 404 });
     }
 
-    if (isFailedStatus(transaction_status)) {
-      if (payment.status === 'PENDING') {
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: { status: 'FAILED' },
-        });
+    if (isSettled(body)) {
+      // Derive the plan from the amount we stored at checkout, never from the
+      // notification body, and confirm the gateway charged at least that much.
+      const plan = planFromAmount(payment.amount);
+      if (!plan) {
+        console.error(
+          `[webhook] Unrecognised amount ${payment.amount} for payment ${payment.id}`
+        );
+        return NextResponse.json({ message: 'Unknown plan' }, { status: 400 });
       }
-      return NextResponse.json({ message: 'OK' });
+
+      const paidAmount = Number.parseFloat(body.gross_amount ?? '0');
+      if (!Number.isFinite(paidAmount) || paidAmount < payment.amount) {
+        console.error(
+          `[webhook] Amount mismatch for ${orderId}: paid ${body.gross_amount}, expected ${payment.amount}`
+        );
+        return NextResponse.json({ message: 'Amount mismatch' }, { status: 400 });
+      }
+
+      // Idempotent: a replayed notification will not create a second subscription.
+      await activateSubscription(prisma, payment.id, payment.userId, plan);
+    } else if (
+      ['cancel', 'deny', 'expire', 'failure'].includes(
+        body.transaction_status ?? ''
+      )
+    ) {
+      // Never downgrade a payment that already settled.
+      await prisma.payment.updateMany({
+        where: { id: payment.id, status: { not: 'PAID' } },
+        data: { status: 'FAILED' },
+      });
     }
-
-    if (!isPaidStatus({ transactionStatus: transaction_status, fraudStatus: fraud_status })) {
-      return NextResponse.json({ message: 'OK' });
-    }
-
-    // Replays of an already-processed notification must not stack subscriptions.
-    if (payment.status === 'PAID') {
-      return NextResponse.json({ message: 'OK' });
-    }
-
-    // The settled amount must match what we charged.
-    if (Math.round(Number(gross_amount)) !== payment.amount) {
-      console.error(`Webhook amount mismatch for ${order_id}`);
-      return NextResponse.json({ message: 'Amount mismatch' }, { status: 400 });
-    }
-
-    const plan = planForAmount(payment.amount);
-    if (!plan) {
-      console.error(`Webhook: no plan matches amount ${payment.amount} for ${order_id}`);
-      return NextResponse.json({ message: 'Unknown plan' }, { status: 400 });
-    }
-
-    const expiresAt = new Date();
-    expiresAt.setMonth(expiresAt.getMonth() + PLAN_DURATION_MONTHS[plan]);
-
-    await prisma.$transaction([
-      prisma.payment.update({ where: { id: payment.id }, data: { status: 'PAID' } }),
-      prisma.user.update({
-        where: { id: payment.userId },
-        data: { subscriptionTier: plan },
-      }),
-      prisma.subscription.create({
-        data: {
-          userId: payment.userId,
-          plan,
-          status: 'ACTIVE',
-          paymentId: payment.id,
-          startsAt: new Date(),
-          expiresAt,
-        },
-      }),
-    ]);
 
     return NextResponse.json({ message: 'OK' });
   } catch (err) {

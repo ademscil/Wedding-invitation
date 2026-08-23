@@ -1,82 +1,68 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { nanoid } from 'nanoid';
-import {
-  router,
-  publicProcedure,
-  protectedProcedure,
-  requireOwnedInvitation,
-  requireOwnedGuest,
-} from '../trpc';
-import { assertFeature, assertQuota, getUserTier } from '@/lib/subscription';
-
-const RSVP_STATUSES = ['PENDING', 'ATTENDING', 'NOT_ATTENDING', 'MAYBE'] as const;
-
-const guestInputSchema = z.object({
-  name: z.string().trim().min(1, 'Nama tamu wajib diisi').max(100),
-  phone: z.string().trim().max(25).optional(),
-  email: z.string().trim().email('Email tidak valid').max(120).optional().or(z.literal('')),
-  groupName: z.string().trim().max(50).optional(),
-});
-
-/** Generates a personal link that is not already taken. */
-async function uniquePersonalLink(
-  prisma: { guest: { findUnique: (a: { where: { personalLink: string }; select: { id: true } }) => Promise<unknown> } }
-): Promise<string> {
-  for (let i = 0; i < 5; i++) {
-    const candidate = nanoid(10);
-    const taken = await prisma.guest.findUnique({
-      where: { personalLink: candidate },
-      select: { id: true },
-    });
-    if (!taken) return candidate;
-  }
-  throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Gagal membuat link tamu' });
-}
+import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { sendEmail, rsvpNotificationEmail } from '@/lib/email';
+import { assertOwnsGuest, assertOwnsInvitation } from '../lib/authorize';
+import { assertCanAddGuests } from '../lib/limits';
+import { assertRateLimit } from '../lib/rate-limit';
 
 export const guestRouter = router({
   list: protectedProcedure
     .input(
       z.object({
         invitationId: z.string(),
-        status: z.enum(RSVP_STATUSES).optional(),
+        status: z.string().optional(),
         group: z.string().optional(),
-        search: z.string().trim().max(100).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireOwnedInvitation(ctx, input.invitationId);
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
 
       return ctx.prisma.guest.findMany({
         where: {
           invitationId: input.invitationId,
           ...(input.status && { rsvpStatus: input.status }),
           ...(input.group && { groupName: input.group }),
-          ...(input.search && { name: { contains: input.search } }),
         },
         orderBy: { createdAt: 'desc' },
       });
     }),
 
   create: protectedProcedure
-    .input(guestInputSchema.extend({ invitationId: z.string() }))
+    .input(
+      z.object({
+        invitationId: z.string(),
+        name: z.string().min(1),
+        phone: z.string().optional(),
+        email: z.string().optional(),
+        groupName: z.string().optional(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
-      await requireOwnedInvitation(ctx, input.invitationId);
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
 
-      const tier = await getUserTier(ctx.prisma, ctx.session.user.id);
-      const currentCount = await ctx.prisma.guest.count({
-        where: { invitationId: input.invitationId },
-      });
-      assertQuota(tier, 'maxGuests', currentCount);
+      await assertCanAddGuests(
+        ctx.prisma,
+        ctx.session.user.id,
+        input.invitationId,
+        1
+      );
 
-      const { invitationId, ...guest } = input;
+      const personalLink = nanoid(10);
 
       return ctx.prisma.guest.create({
         data: {
-          ...guest,
-          email: guest.email || null,
-          invitationId,
-          personalLink: await uniquePersonalLink(ctx.prisma),
+          ...input,
+          personalLink,
         },
       });
     }),
@@ -85,36 +71,37 @@ export const guestRouter = router({
     .input(
       z.object({
         invitationId: z.string(),
-        guests: z.array(guestInputSchema).min(1).max(1000),
+        guests: z
+          .array(
+            z.object({
+              name: z.string().min(1),
+              phone: z.string().optional(),
+              email: z.string().optional(),
+              groupName: z.string().optional(),
+            })
+          )
+          .min(1, 'Minimal satu tamu')
+          .max(1000, 'Maksimal 1000 tamu per impor'),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireOwnedInvitation(ctx, input.invitationId);
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
 
-      const tier = await getUserTier(ctx.prisma, ctx.session.user.id);
-      const currentCount = await ctx.prisma.guest.count({
-        where: { invitationId: input.invitationId },
-      });
-      assertQuota(tier, 'maxGuests', currentCount, input.guests.length);
+      await assertCanAddGuests(
+        ctx.prisma,
+        ctx.session.user.id,
+        input.invitationId,
+        input.guests.length
+      );
 
-      // Pre-generate links in one pass and verify none collide with existing rows.
-      const links = new Set<string>();
-      while (links.size < input.guests.length) {
-        links.add(nanoid(10));
-      }
-      const linkList = [...links];
-
-      const collisions = await ctx.prisma.guest.findMany({
-        where: { personalLink: { in: linkList } },
-        select: { personalLink: true },
-      });
-      const taken = new Set(collisions.map((c) => c.personalLink));
-
-      const guestsData = input.guests.map((guest, i) => ({
+      const guestsData = input.guests.map((guest) => ({
         ...guest,
-        email: guest.email || null,
         invitationId: input.invitationId,
-        personalLink: taken.has(linkList[i]) ? nanoid(12) : linkList[i],
+        personalLink: nanoid(10),
       }));
 
       return ctx.prisma.guest.createMany({ data: guestsData });
@@ -122,77 +109,26 @@ export const guestRouter = router({
 
   update: protectedProcedure
     .input(
-      guestInputSchema.partial().extend({
+      z.object({
         id: z.string(),
-        rsvpStatus: z.enum(RSVP_STATUSES).optional(),
-        rsvpGuestCount: z.number().int().min(1).max(20).optional(),
+        name: z.string().optional(),
+        phone: z.string().optional(),
+        email: z.string().optional(),
+        groupName: z.string().optional(),
+        rsvpStatus: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      await requireOwnedGuest(ctx, id);
-
-      return ctx.prisma.guest.update({
-        where: { id },
-        data: { ...data, ...(data.email !== undefined && { email: data.email || null }) },
-      });
+      await assertOwnsGuest(ctx.prisma, id, ctx.session.user.id);
+      return ctx.prisma.guest.update({ where: { id }, data });
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await requireOwnedGuest(ctx, input.id);
+      await assertOwnsGuest(ctx.prisma, input.id, ctx.session.user.id);
       return ctx.prisma.guest.delete({ where: { id: input.id } });
-    }),
-
-  deleteMany: protectedProcedure
-    .input(z.object({ invitationId: z.string(), ids: z.array(z.string()).min(1).max(500) }))
-    .mutation(async ({ ctx, input }) => {
-      await requireOwnedInvitation(ctx, input.invitationId);
-
-      // Scoping the delete to the owned invitation prevents deleting other people's guests
-      // even if an unrelated id is smuggled into the list.
-      return ctx.prisma.guest.deleteMany({
-        where: { id: { in: input.ids }, invitationId: input.invitationId },
-      });
-    }),
-
-  /** Marks guests as having been sent their invitation (used by the broadcast flow). */
-  markMessageSent: protectedProcedure
-    .input(z.object({ invitationId: z.string(), ids: z.array(z.string()).min(1).max(500) }))
-    .mutation(async ({ ctx, input }) => {
-      await requireOwnedInvitation(ctx, input.invitationId);
-      const tier = await getUserTier(ctx.prisma, ctx.session.user.id);
-      assertFeature(tier, 'hasBroadcast');
-
-      return ctx.prisma.guest.updateMany({
-        where: { id: { in: input.ids }, invitationId: input.invitationId },
-        data: { messageSent: true },
-      });
-    }),
-
-  /** Public: looks up a guest by personal link so the invitation can greet them. */
-  getByPersonalLink: publicProcedure
-    .input(z.object({ invitationSlug: z.string(), personalLink: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const guest = await ctx.prisma.guest.findUnique({
-        where: { personalLink: input.personalLink },
-        include: { invitation: { select: { slug: true, status: true } } },
-      });
-
-      if (
-        !guest ||
-        guest.invitation.slug !== input.invitationSlug ||
-        guest.invitation.status !== 'PUBLISHED'
-      ) {
-        return null;
-      }
-
-      return {
-        name: guest.name,
-        rsvpStatus: guest.rsvpStatus,
-        rsvpGuestCount: guest.rsvpGuestCount,
-      };
     }),
 
   submitRsvp: publicProcedure
@@ -200,94 +136,151 @@ export const guestRouter = router({
       z.object({
         invitationSlug: z.string(),
         personalLink: z.string().optional(),
-        name: z.string().trim().min(1, 'Nama wajib diisi').max(100),
+        name: z.string().min(1),
         status: z.enum(['ATTENDING', 'NOT_ATTENDING', 'MAYBE']),
-        guestCount: z.number().int().min(1).max(20).default(1),
-        session: z.string().max(60).optional(),
-        dietaryNotes: z.string().max(500).optional(),
+        guestCount: z.number().min(1).max(10).default(1),
+        session: z.string().optional(),
+        dietaryNotes: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Public endpoint that can create guest rows — cap it per IP.
+      assertRateLimit(
+        `rsvp:${ctx.ip}`,
+        { limit: 10, windowMs: 60_000 },
+        'Terlalu banyak pengiriman RSVP.'
+      );
+
       const invitation = await ctx.prisma.invitation.findUnique({
         where: { slug: input.invitationSlug },
-        select: { id: true, status: true },
+        include: { user: { select: { email: true } } },
       });
 
       if (!invitation || invitation.status !== 'PUBLISHED') {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Undangan tidak ditemukan' });
+        throw new TRPCError({ code: 'NOT_FOUND' });
       }
 
-      // Guests who are not attending should not reserve seats.
-      const guestCount = input.status === 'ATTENDING' ? input.guestCount : 1;
+      let guestRecord;
+      if (input.personalLink) {
+        const guest = await ctx.prisma.guest.findUnique({
+          where: { personalLink: input.personalLink },
+        });
 
-      const record = await (async () => {
-        if (input.personalLink) {
-          const guest = await ctx.prisma.guest.findUnique({
-            where: { personalLink: input.personalLink },
+        if (guest && guest.invitationId === invitation.id) {
+          guestRecord = await ctx.prisma.guest.update({
+            where: { id: guest.id },
+            data: {
+              rsvpStatus: input.status,
+              rsvpGuestCount: input.guestCount,
+              rsvpSession: input.session,
+              dietaryNotes: input.dietaryNotes,
+            },
           });
-
-          if (guest && guest.invitationId === invitation.id) {
-            return ctx.prisma.guest.update({
-              where: { id: guest.id },
-              data: {
-                rsvpStatus: input.status,
-                rsvpGuestCount: guestCount,
-                rsvpSession: input.session,
-                dietaryNotes: input.dietaryNotes,
-              },
-            });
-          }
         }
+      }
 
-        return ctx.prisma.guest.create({
+      if (!guestRecord) {
+        // Walk-in RSVPs count against the owner's plan quota, otherwise this
+        // public endpoint would be an unbounded way to create guest rows.
+        await assertCanAddGuests(
+          ctx.prisma,
+          invitation.userId,
+          invitation.id,
+          1
+        );
+
+        guestRecord = await ctx.prisma.guest.create({
           data: {
             invitationId: invitation.id,
             name: input.name,
-            personalLink: await uniquePersonalLink(ctx.prisma),
+            personalLink: nanoid(10),
             rsvpStatus: input.status,
-            rsvpGuestCount: guestCount,
+            rsvpGuestCount: input.guestCount,
             rsvpSession: input.session,
             dietaryNotes: input.dietaryNotes,
             groupName: 'Walk-in',
           },
         });
-      })();
+      }
 
-      // Record the RSVP so the analytics dashboard reflects it.
-      await ctx.prisma.analyticsEvent
-        .create({
-          data: {
-            invitationId: invitation.id,
-            eventType: 'RSVP_SUBMIT',
-            metadata: JSON.stringify({ status: input.status, guestCount }),
-          },
-        })
-        .catch(() => undefined);
+      if (invitation.user.email) {
+        sendEmail({
+          to: invitation.user.email,
+          subject: `RSVP Baru dari ${input.name}`,
+          html: rsvpNotificationEmail({
+            brideName: invitation.brideName,
+            groomName: invitation.groomName,
+            guestName: input.name,
+            status: input.status,
+            guestCount: input.guestCount,
+          }),
+        }).catch(() => undefined);
+      }
 
-      return { success: true, id: record.id };
+      return guestRecord;
     }),
 
   getStats: protectedProcedure
     .input(z.object({ invitationId: z.string() }))
     .query(async ({ ctx, input }) => {
-      await requireOwnedInvitation(ctx, input.invitationId);
+      await assertOwnsInvitation(
+        ctx.prisma,
+        input.invitationId,
+        ctx.session.user.id
+      );
 
-      const where = { invitationId: input.invitationId };
-
-      const [total, attending, notAttending, maybe, pending, sums, opened, checkedIn] =
+      const [total, attending, notAttending, maybe, pending] =
         await Promise.all([
-          ctx.prisma.guest.count({ where }),
-          ctx.prisma.guest.count({ where: { ...where, rsvpStatus: 'ATTENDING' } }),
-          ctx.prisma.guest.count({ where: { ...where, rsvpStatus: 'NOT_ATTENDING' } }),
-          ctx.prisma.guest.count({ where: { ...where, rsvpStatus: 'MAYBE' } }),
-          ctx.prisma.guest.count({ where: { ...where, rsvpStatus: 'PENDING' } }),
-          ctx.prisma.guest.aggregate({
-            where: { ...where, rsvpStatus: 'ATTENDING' },
-            _sum: { rsvpGuestCount: true },
+          ctx.prisma.guest.count({
+            where: { invitationId: input.invitationId },
           }),
-          ctx.prisma.guest.count({ where: { ...where, linkOpenedAt: { not: null } } }),
-          ctx.prisma.guest.count({ where: { ...where, checkedIn: true } }),
+          ctx.prisma.guest.count({
+            where: {
+              invitationId: input.invitationId,
+              rsvpStatus: 'ATTENDING',
+            },
+          }),
+          ctx.prisma.guest.count({
+            where: {
+              invitationId: input.invitationId,
+              rsvpStatus: 'NOT_ATTENDING',
+            },
+          }),
+          ctx.prisma.guest.count({
+            where: {
+              invitationId: input.invitationId,
+              rsvpStatus: 'MAYBE',
+            },
+          }),
+          ctx.prisma.guest.count({
+            where: {
+              invitationId: input.invitationId,
+              rsvpStatus: 'PENDING',
+            },
+          }),
         ]);
+
+      const [totalAttendingGuests, opened, checkedIn] = await Promise.all([
+        ctx.prisma.guest.aggregate({
+          where: {
+            invitationId: input.invitationId,
+            rsvpStatus: 'ATTENDING',
+          },
+          _sum: { rsvpGuestCount: true },
+        }),
+        ctx.prisma.guest.count({
+          where: {
+            invitationId: input.invitationId,
+            linkOpenedAt: { not: null },
+          },
+        }),
+        ctx.prisma.guest.count({
+          where: {
+            invitationId: input.invitationId,
+            checkedIn: true,
+          },
+        }),
+      ]);
 
       return {
         total,
@@ -295,7 +288,7 @@ export const guestRouter = router({
         notAttending,
         maybe,
         pending,
-        totalGuestCount: sums._sum.rsvpGuestCount || 0,
+        totalGuestCount: totalAttendingGuests._sum.rsvpGuestCount || 0,
         opened,
         checkedIn,
       };

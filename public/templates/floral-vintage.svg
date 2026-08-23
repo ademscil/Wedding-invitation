@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#F5EFE6"/>
+  <ellipse cx="200" cy="430" rx="220" ry="110" fill="#DCC9B4" opacity="0.45"/>
+  <g opacity="0.4" stroke="#9A7B63" fill="none" stroke-width="2">
+    <path d="M130 300 Q200 224 270 300"/>
+    <path d="M130 300 L130 430"/>
+    <path d="M270 300 L270 430"/>
+    <path d="M112 430 L288 430" stroke-width="3"/>
+  </g>
+  <g opacity="0.3">
+    <ellipse cx="48" cy="372" rx="54" ry="76" fill="#7F9070"/>
+    <ellipse cx="352" cy="366" rx="56" ry="80" fill="#7F9070"/>
+  </g>
+  <ellipse cx="62" cy="34" rx="110" ry="54" fill="#EBD9C4" opacity="0.5"/>
+  <ellipse cx="340" cy="30" rx="110" ry="52" fill="#EBD9C4" opacity="0.45"/>
+  <g>
+    <circle cx="56" cy="46" r="24" fill="#D9A3A8" opacity="0.6"/>
+    <circle cx="56" cy="46" r="15" fill="#D9A3A8" opacity="0.7"/>
+    <circle cx="56" cy="46" r="8" fill="#B97C86" opacity="0.6"/>
+    <circle cx="104" cy="70" r="15" fill="#B97C86" opacity="0.55"/>
+    <circle cx="344" cy="42" r="25" fill="#D9A3A8" opacity="0.6"/>
+    <circle cx="344" cy="42" r="15" fill="#D9A3A8" opacity="0.7"/>
+    <circle cx="344" cy="42" r="8" fill="#B97C86" opacity="0.6"/>
+    <circle cx="298" cy="68" r="15" fill="#B97C86" opacity="0.55"/>
+  </g>
+  <ellipse cx="58" cy="530" rx="118" ry="58" fill="#EBD9C4" opacity="0.5"/>
+  <ellipse cx="344" cy="532" rx="118" ry="56" fill="#EBD9C4" opacity="0.45"/>
+  <g>
+    <circle cx="64" cy="512" r="26" fill="#D9A3A8" opacity="0.6"/>
+    <circle cx="64" cy="512" r="16" fill="#D9A3A8" opacity="0.7"/>
+    <circle cx="64" cy="512" r="8" fill="#B97C86" opacity="0.6"/>
+    <circle cx="336" cy="510" r="25" fill="#D9A3A8" opacity="0.6"/>
+    <circle cx="336" cy="510" r="15" fill="#D9A3A8" opacity="0.7"/>
+    <circle cx="336" cy="510" r="8" fill="#B97C86" opacity="0.6"/>
+  </g>
+  <path d="M158 150 Q172 138 186 148 Q200 138 214 150" stroke="#9A7B63" stroke-width="1.6" fill="none" opacity="0.7" stroke-linecap="round"/>
+  <text x="200" y="212" text-anchor="middle" font-family="Georgia, serif" font-size="12" letter-spacing="4" fill="#7C6A5D">THE WEDDING OF</text>
+  <text x="200" y="262" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="38" fill="#8B2332">Floral Vintage</text>
+  <line x1="140" y1="286" x2="176" y2="286" stroke="#C9A57E" stroke-width="1.4"/>
+  <text x="200" y="291" text-anchor="middle" font-family="Georgia, serif" font-size="14" letter-spacing="3" fill="#4A3B32">13 . 04 . 25</text>
+  <line x1="224" y1="286" x2="260" y2="286" stroke="#C9A57E" stroke-width="1.4"/>
+  <text x="200" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="#7C6A5D">Parallax &amp; Timeline Acara</text>
+</svg>

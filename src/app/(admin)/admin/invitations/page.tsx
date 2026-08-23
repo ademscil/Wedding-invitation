@@ -6,12 +6,13 @@ import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export default function AdminInvitationsPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = trpc.admin.listInvitations.useQuery({ page, limit: 20 });
+  const { data, isLoading, isError, error, refetch } = trpc.admin.listInvitations.useQuery({ page, limit: 20 });
 
   return (
     <div className="space-y-6 p-6">
@@ -25,7 +26,9 @@ export default function AdminInvitationsPage() {
           <CardTitle>Daftar Undangan</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isError ? (
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      ) : isLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12" />)}
             </div>

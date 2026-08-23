@@ -1,46 +1,8 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import bcrypt from 'bcryptjs';
-import path from 'node:path';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const dbPath = path.join(__dirname, 'dev.db');
-const adapter = new PrismaBetterSqlite3({ url: dbPath });
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
-
-/**
- * Creates the initial admin account so /admin is reachable on a fresh install.
- * Credentials come from the environment; an existing account is never
- * overwritten, so re-seeding will not reset a changed password.
- */
-async function seedAdmin() {
-  const email = process.env.SEED_ADMIN_EMAIL || 'admin@wedinvite.local';
-  const password = process.env.SEED_ADMIN_PASSWORD || 'admin12345';
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    if (existing.role !== 'ADMIN') {
-      await prisma.user.update({ where: { email }, data: { role: 'ADMIN' } });
-      console.log(`Promoted existing user to admin: ${email}`);
-    } else {
-      console.log(`Admin already present: ${email}`);
-    }
-    return;
-  }
-
-  await prisma.user.create({
-    data: {
-      email,
-      name: 'Administrator',
-      hashedPassword: await bcrypt.hash(password, 10),
-      role: 'ADMIN',
-      subscriptionTier: 'BUSINESS',
-      emailVerified: new Date(),
-    },
-  });
-
-  console.log(`Admin created: ${email} / ${password}`);
-  console.log('Change this password after your first login.');
-}
 
 async function main() {
   const templates = [
@@ -51,7 +13,7 @@ async function main() {
       description: 'Template elegan dengan nuansa rose gold dan ornamen klasik',
       componentName: 'elegant',
       isPremium: false,
-      thumbnail: '/templates/elegant-rose.jpg',
+      thumbnail: '/templates/elegant-rose.svg',
     },
     {
       name: 'Modern Clean',
@@ -60,7 +22,7 @@ async function main() {
       description: 'Template modern dengan desain bersih dan minimalis',
       componentName: 'modern',
       isPremium: false,
-      thumbnail: '/templates/modern-clean.jpg',
+      thumbnail: '/templates/modern-clean.svg',
     },
     {
       name: 'Simply White',
@@ -69,7 +31,7 @@ async function main() {
       description: 'Template minimalis dengan warna putih dan tipografi elegan',
       componentName: 'minimalist',
       isPremium: false,
-      thumbnail: '/templates/simply-white.jpg',
+      thumbnail: '/templates/simply-white.svg',
     },
     {
       name: 'Islamic Green',
@@ -79,7 +41,7 @@ async function main() {
       componentName: 'islamic',
       isPremium: true,
       price: 50000,
-      thumbnail: '/templates/islamic-green.jpg',
+      thumbnail: '/templates/islamic-green.svg',
     },
     {
       name: 'Rustic Garden',
@@ -89,7 +51,7 @@ async function main() {
       componentName: 'rustic',
       isPremium: true,
       price: 50000,
-      thumbnail: '/templates/rustic-garden.jpg',
+      thumbnail: '/templates/rustic-garden.svg',
     },
     {
       name: 'Christian Grace',
@@ -98,7 +60,7 @@ async function main() {
       description: 'Template Kristiani dengan ayat Alkitab dan nuansa biru lembut',
       componentName: 'christian',
       isPremium: false,
-      thumbnail: '/templates/christian-grace.jpg',
+      thumbnail: '/templates/christian-grace.svg',
     },
     {
       name: 'Javanese Heritage',
@@ -108,7 +70,7 @@ async function main() {
       componentName: 'javanese',
       isPremium: true,
       price: 75000,
-      thumbnail: '/templates/javanese-heritage.jpg',
+      thumbnail: '/templates/javanese-heritage.svg',
     },
     {
       name: 'Modern Dark',
@@ -118,7 +80,7 @@ async function main() {
       componentName: 'modern-dark',
       isPremium: true,
       price: 75000,
-      thumbnail: '/templates/modern-dark.jpg',
+      thumbnail: '/templates/modern-dark.svg',
     },
     {
       name: 'Chinese Double Happiness',
@@ -128,7 +90,7 @@ async function main() {
       componentName: 'chinese',
       isPremium: true,
       price: 75000,
-      thumbnail: '/templates/chinese-double-happiness.jpg',
+      thumbnail: '/templates/chinese-double-happiness.svg',
     },
     {
       name: 'Floral Romance',
@@ -137,7 +99,48 @@ async function main() {
       description: 'Template romantis dengan ornamen bunga merah muda yang cantik',
       componentName: 'floral',
       isPremium: false,
-      thumbnail: '/templates/floral-romance.jpg',
+      thumbnail: '/templates/floral-romance.svg',
+    },
+    {
+      name: 'Vintage Arch',
+      slug: 'vintage-arch',
+      category: 'VINTAGE',
+      description: 'Template arch klasik maroon-emas dengan animasi teks bertahap dan timeline acara',
+      componentName: 'vintage-arch',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/vintage-arch.svg',
+    },
+    {
+      name: 'Botanical Line',
+      slug: 'botanical-line',
+      category: 'RUSTIC',
+      description: 'Template hijau botanical dengan timeline acara bergaris dan animasi teks bertahap',
+      componentName: 'botanical-line',
+      isPremium: true,
+      price: 75000,
+      thumbnail: '/templates/botanical-line.svg',
+    },
+    {
+      name: 'Royal Gold',
+      slug: 'royal-gold',
+      category: 'ELEGANT',
+      description: 'Template mewah hitam-emas dengan timeline acara dan animasi teks bertahap',
+      componentName: 'royal-gold',
+      isPremium: true,
+      price: 100000,
+      thumbnail: '/templates/royal-gold.svg',
+    },
+    {
+      name: 'Floral Vintage',
+      slug: 'floral-vintage',
+      category: 'VINTAGE',
+      description:
+        'Template floral vintage pastel dengan latar gazebo watercolor, animasi parallax, timeline acara bergaris, dan kupu-kupu',
+      componentName: 'floral-vintage',
+      isPremium: true,
+      price: 95000,
+      thumbnail: '/templates/floral-vintage.svg',
     },
   ];
 
@@ -149,9 +152,7 @@ async function main() {
     });
   }
 
-  console.log(`Seed completed: ${templates.length} templates`);
-
-  await seedAdmin();
+  console.log(`Seed completed: ${templates.length} templates created`);
 }
 
 main()

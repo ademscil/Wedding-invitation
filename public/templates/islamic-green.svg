@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560">
+  <rect width="400" height="560" fill="#f0f7f2"/>
+  <circle cx="200" cy="230" r="90" fill="none" stroke="#2f6b3e" stroke-width="2"/>
+  <text x="200" y="260" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#2f6b3e">Islamic</text>
+  <text x="200" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#4d8a5a">Green Template</text>
+</svg>

@@ -14,19 +14,16 @@ import {
   Pie,
   Cell,
   Legend,
-  BarChart,
-  Bar,
 } from 'recharts';
-import { Eye, Users, MessageCircle, Gift, Lock, Share2 } from 'lucide-react';
-import { format, subDays, eachDayOfInterval } from 'date-fns';
-import { id as localeId } from 'date-fns/locale';
+import { ArrowLeft, Eye, Users, MessageCircle, Gift } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { InvitationTabs } from '@/components/dashboard/invitation-tabs';
-
-const DEVICE_COLORS = ['#6366F1', '#7BAF7B', '#D4A574', '#C97B7B', '#9CA3AF'];
+import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
+import { format, subDays, eachDayOfInterval } from 'date-fns';
+import { id as localeId } from 'date-fns/locale';
+import { useFeature, FeatureLocked } from '@/components/dashboard/feature-gate';
 
 function StatCard({
   icon: Icon,
@@ -54,34 +51,21 @@ function StatCard({
   );
 }
 
-/** Shown when the caller's plan does not include analytics. */
-function UpgradeNotice({ message }: { message: string }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-center py-16 text-center">
-        <div className="mb-4 rounded-full bg-amber-100 p-4">
-          <Lock className="h-7 w-7 text-amber-700" />
-        </div>
-        <h2 className="mb-2 text-lg font-semibold">Statistik belum tersedia</h2>
-        <p className="mb-5 max-w-sm text-sm text-muted-foreground">{message}</p>
-        <Button asChild>
-          <Link href="/dashboard/upgrade">Lihat Paket</Link>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function AnalyticsPage() {
-  const { id } = useParams<{ id: string }>();
+  const hasAnalytics = useFeature('hasAnalytics');
 
+  const { id } = useParams<{ id: string }>();
   const {
     data: stats,
     isLoading,
+    isError,
     error,
+    refetch,
   } = trpc.analytics.getStats.useQuery(
     { invitationId: id },
-    { enabled: !!id, retry: false }
+    // The plan gate answers FORBIDDEN; the locked screen below handles that,
+    // so only query once we know the feature is available.
+    { enabled: !!id && hasAnalytics === true }
   );
   const { data: invitation } = trpc.invitation.getById.useQuery(
     { id },
@@ -94,19 +78,19 @@ export default function AnalyticsPage() {
 
   const viewsChartData = (() => {
     if (!stats?.recentViews) return [];
-
-    const countByDay = new Map<string, number>();
-    for (const view of stats.recentViews) {
-      const day = format(new Date(view.createdAt), 'yyyy-MM-dd');
-      countByDay.set(day, (countByDay.get(day) ?? 0) + 1);
-    }
-
-    return eachDayOfInterval({ start: subDays(new Date(), 29), end: new Date() }).map(
-      (date) => ({
-        date: format(date, 'd MMM', { locale: localeId }),
-        views: countByDay.get(format(date, 'yyyy-MM-dd')) ?? 0,
-      })
-    );
+    const last30Days = eachDayOfInterval({
+      start: subDays(new Date(), 29),
+      end: new Date(),
+    });
+    const countByDay: Record<string, number> = {};
+    stats.recentViews.forEach((v) => {
+      const day = format(new Date(v.createdAt), 'yyyy-MM-dd');
+      countByDay[day] = (countByDay[day] || 0) + 1;
+    });
+    return last30Days.map((date) => ({
+      date: format(date, 'd MMM', { locale: localeId }),
+      views: countByDay[format(date, 'yyyy-MM-dd')] || 0,
+    }));
   })();
 
   const rsvpPieData = rsvpStats
@@ -118,35 +102,34 @@ export default function AnalyticsPage() {
       ].filter((d) => d.value > 0)
     : [];
 
-  const header = (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Statistik Undangan</h1>
-        {invitation && (
-          <p className="text-sm text-muted-foreground">
-            {invitation.brideName} &amp; {invitation.groomName}
-          </p>
-        )}
-      </div>
-      <InvitationTabs invitationId={id} active="analytics" />
-    </div>
-  );
-
-  if (error?.data?.code === 'FORBIDDEN') {
+  // Order matters: the plan gate decides whether this page is available at all,
+  // then a failed load, and only then the loading skeleton.
+  if (hasAnalytics === false) {
     return (
-      <div className="space-y-6 p-6">
-        {header}
-        <UpgradeNotice message={error.message} />
+      <div className="p-6">
+        <FeatureLocked
+          title="Statistik belum tersedia"
+          description="Lihat jumlah kunjungan, RSVP, dan ucapan pada undangan Anda secara real-time."
+          requiredPlan="Starter"
+        />
       </div>
     );
   }
 
-  if (isLoading) {
+  if (isError) {
+    return (
+      <div className="p-6">
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  if (isLoading || hasAnalytics === undefined) {
     return (
       <div className="space-y-6 p-6">
-        {header}
+        <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
@@ -155,37 +138,36 @@ export default function AnalyticsPage() {
     );
   }
 
-  const hasAnyViews = (stats?.totalViews ?? 0) > 0;
-
   return (
     <div className="space-y-6 p-6">
-      {header}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard icon={Eye} label="Kunjungan" value={stats?.totalViews ?? 0} color="#6366F1" />
-        <StatCard icon={Users} label="RSVP Masuk" value={stats?.totalRsvps ?? 0} color="#7BAF7B" />
-        <StatCard
-          icon={MessageCircle}
-          label="Ucapan"
-          value={stats?.totalWishes ?? 0}
-          color="#D4A574"
-        />
-        <StatCard
-          icon={Gift}
-          label="Klik Hadiah"
-          value={stats?.totalGiftClicks ?? 0}
-          color="#C97B7B"
-        />
-        <StatCard icon={Share2} label="Dibagikan" value={stats?.totalShares ?? 0} color="#8B6F5C" />
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/dashboard/invitations/${id}`}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold">Statistik Undangan</h1>
+          {invitation && (
+            <p className="text-sm text-muted-foreground">
+              {invitation.brideName} &amp; {invitation.groomName}
+            </p>
+          )}
+        </div>
       </div>
 
-      {!hasAnyViews && (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Belum ada kunjungan. Bagikan link undangan ke tamu untuk mulai mengumpulkan
-          statistik.
-        </div>
-      )}
+      <InvitationTabs invitationId={id} active="analytics" />
 
+      {/* Stat Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={Eye} label="Total Kunjungan" value={stats?.totalViews ?? 0} color="#6366F1" />
+        <StatCard icon={Users} label="RSVP Masuk" value={stats?.totalRsvps ?? 0} color="#7BAF7B" />
+        <StatCard icon={MessageCircle} label="Ucapan" value={stats?.totalWishes ?? 0} color="#D4A574" />
+        <StatCard icon={Gift} label="Klik Hadiah" value={stats?.totalGiftClicks ?? 0} color="#C97B7B" />
+      </div>
+
+      {/* Views Chart */}
       <Card>
         <CardHeader>
           <CardTitle>Kunjungan 30 Hari Terakhir</CardTitle>
@@ -200,7 +182,11 @@ export default function AnalyticsPage() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11 }}
+                interval="preserveStartEnd"
+              />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
               <Area
@@ -216,8 +202,9 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {rsvpPieData.length > 0 && (
+      {/* RSVP Breakdown */}
+      {rsvpPieData.length > 0 && (
+        <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Konfirmasi Kehadiran</CardTitle>
@@ -234,8 +221,8 @@ export default function AnalyticsPage() {
                     paddingAngle={3}
                     dataKey="value"
                   >
-                    {rsvpPieData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
+                    {rsvpPieData.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value) => [`${value} tamu`, '']} />
@@ -244,91 +231,28 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        )}
 
-        {rsvpStats && (
           <Card>
             <CardHeader>
               <CardTitle>Ringkasan Tamu</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 pt-2">
-              <div className="flex items-center justify-between rounded-lg bg-green-50 p-3">
-                <span className="text-sm font-medium text-green-800">Perkiraan Hadir</span>
-                <span className="font-bold text-green-700">
-                  {rsvpStats.totalGuestCount} orang
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-muted p-3">
-                <span className="text-sm font-medium">Tamu Terdaftar</span>
-                <span className="font-bold">{rsvpStats.total} undangan</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-muted p-3">
-                <span className="text-sm font-medium">Sudah Membuka Undangan</span>
-                <span className="font-bold">
-                  {rsvpStats.opened}
-                  {rsvpStats.total > 0 && (
-                    <span className="ml-1 text-xs font-normal text-muted-foreground">
-                      ({Math.round((rsvpStats.opened / rsvpStats.total) * 100)}%)
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-muted p-3">
-                <span className="text-sm font-medium">Sudah Check-in</span>
-                <span className="font-bold">{rsvpStats.checkedIn} tamu</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {(stats?.devices.length ?? 0) > 0 && (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Perangkat</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={stats?.devices ?? []}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {(stats?.devices ?? []).map((entry, index) => (
-                      <Cell key={entry.name} fill={DEVICE_COLORS[index % DEVICE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`${value} kunjungan`, '']} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Sumber Kunjungan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={stats?.referrers ?? []} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tick={{ fontSize: 11 }}
-                    width={90}
-                  />
-                  <Tooltip formatter={(value) => [`${value} kunjungan`, '']} />
-                  <Bar dataKey="value" fill="#6366F1" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {rsvpStats && (
+                <>
+                  <div className="flex items-center justify-between rounded-lg bg-green-50 p-3">
+                    <span className="text-sm font-medium text-green-800">Total Hadir</span>
+                    <span className="font-bold text-green-700">{rsvpStats.totalGuestCount} orang</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-muted p-3">
+                    <span className="text-sm font-medium">Total Tamu Terdaftar</span>
+                    <span className="font-bold">{rsvpStats.total} undangan</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-muted p-3">
+                    <span className="text-sm font-medium">Sudah Buka Undangan</span>
+                    <span className="font-bold">{rsvpStats.opened} tamu</span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

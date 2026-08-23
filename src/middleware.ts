@@ -1,7 +1,7 @@
 export { default } from 'next-auth/middleware';
 
 export const config = {
-  // Admin pages additionally verify the ADMIN role server-side in their layout;
-  // this only ensures an unauthenticated visitor is sent to login first.
+  // Role is enforced in the admin layout; this only stops anonymous visitors
+  // from reaching the page before that check runs.
   matcher: ['/dashboard/:path*', '/admin/:path*'],
 };

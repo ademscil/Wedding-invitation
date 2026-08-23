@@ -18,7 +18,6 @@ import {
   QrCode,
   Copy,
   ExternalLink,
-  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
@@ -26,14 +25,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
+import { useEscapeKey } from '@/hooks/use-escape-key';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { InvitationTabs } from '@/components/dashboard/invitation-tabs';
-import {
-  RSVP_STATUS,
-  GUEST_GROUPS,
-  SUBSCRIPTION_TIERS,
-  type SubscriptionTier,
-} from '@/lib/constants';
+import { RSVP_STATUS, GUEST_GROUPS } from '@/lib/constants';
 import {
   parseGuestFile,
   exportGuestsToCsv,
@@ -43,19 +40,13 @@ import {
   downloadImportTemplate,
   buildGuestUrl,
 } from '@/lib/guest-utils';
-
-type RsvpFilter = '' | 'ATTENDING' | 'NOT_ATTENDING' | 'MAYBE' | 'PENDING';
-
-const UPGRADE_EXPORT_MESSAGE =
-  'Export data tamu tersedia mulai paket Premium. Upgrade untuk membuka fitur ini.';
-const UPGRADE_BROADCAST_MESSAGE =
-  'Broadcast WhatsApp tersedia mulai paket Premium. Upgrade untuk membuka fitur ini.';
+import { useFeature } from '@/components/dashboard/feature-gate';
 
 export default function GuestsPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const [statusFilter, setStatusFilter] = useState<RsvpFilter>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showQrModal, setShowQrModal] = useState<{ name: string; qr: string } | null>(null);
@@ -65,19 +56,31 @@ export default function GuestsPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<Array<{ name: string; phone?: string; email?: string; groupName?: string }>>([]);
   const [importLoading, setImportLoading] = useState(false);
+  const [deleteGuestId, setDeleteGuestId] = useState<string | null>(null);
+  const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
+  const canExport = useFeature('hasExport');
+  const canBroadcast = useFeature('hasBroadcast');
+  const [broadcastQueue, setBroadcastQueue] = useState<Array<{ id: string; name: string; phone: string; personalLink: string }> | null>(null);
+  const [broadcastIndex, setBroadcastIndex] = useState(0);
+  const [broadcastSent, setBroadcastSent] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEscapeKey(showAddDialog, () => setShowAddDialog(false));
+  useEscapeKey(showImportDialog, () => setShowImportDialog(false));
+  useEscapeKey(!!showQrModal, () => setShowQrModal(null));
 
   const { data: invitation } = trpc.invitation.getById.useQuery(
     { id },
     { enabled: !!id }
   );
 
-  const { data: subscription } = trpc.payment.getSubscription.useQuery();
-  const tier = (subscription?.tier ?? 'FREE') as SubscriptionTier;
-  const canExport = SUBSCRIPTION_TIERS[tier]?.hasExport ?? false;
-  const canBroadcast = SUBSCRIPTION_TIERS[tier]?.hasBroadcast ?? false;
-
-  const { data: guests, isLoading: guestsLoading } = trpc.guest.list.useQuery(
+  const {
+    data: guests,
+    isLoading: guestsLoading,
+    isError: guestsError,
+    error: guestsErrorObj,
+    refetch: refetchGuests,
+  } = trpc.guest.list.useQuery(
     { invitationId: id, status: statusFilter || undefined },
     { enabled: !!id }
   );
@@ -99,7 +102,7 @@ export default function GuestsPage() {
       setNewGuestPhone('');
       setNewGuestGroup('');
     },
-    onError: (error) => toast.error(error.message || 'Gagal menambahkan tamu'),
+    onError: () => toast.error('Gagal menambahkan tamu'),
   });
 
   const createManyMutation = trpc.guest.createMany.useMutation({
@@ -111,7 +114,7 @@ export default function GuestsPage() {
       setImportFile(null);
       setImportPreview([]);
     },
-    onError: (error) => toast.error(error.message || 'Gagal mengimpor tamu'),
+    onError: () => toast.error('Gagal mengimpor tamu'),
   });
 
   const deleteMutation = trpc.guest.delete.useMutation({
@@ -119,8 +122,9 @@ export default function GuestsPage() {
       toast.success('Tamu berhasil dihapus');
       utils.guest.list.invalidate({ invitationId: id });
       utils.guest.getStats.invalidate({ invitationId: id });
+      setDeleteGuestId(null);
     },
-    onError: (error) => toast.error(error.message || 'Gagal menghapus tamu'),
+    onError: () => toast.error('Gagal menghapus tamu'),
   });
 
   const handleAddGuest = (e: React.FormEvent) => {
@@ -138,9 +142,57 @@ export default function GuestsPage() {
   };
 
   const handleDeleteGuest = (guestId: string) => {
-    if (window.confirm('Yakin ingin menghapus tamu ini?')) {
-      deleteMutation.mutate({ id: guestId });
+    setDeleteGuestId(guestId);
+  };
+
+  const toggleSelectGuest = (guestId: string) => {
+    setSelectedGuestIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(guestId)) next.delete(guestId);
+      else next.add(guestId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (guestsWithPhone: Array<{ id: string }>) => {
+    setSelectedGuestIds((prev) =>
+      prev.size === guestsWithPhone.length ? new Set() : new Set(guestsWithPhone.map((g) => g.id))
+    );
+  };
+
+  const handleStartBroadcast = () => {
+    if (!canBroadcast) {
+      toast.error(
+        'Fitur ini tidak tersedia pada paket Anda. Upgrade untuk menggunakannya.'
+      );
+      return;
     }
+    if (!guests) return;
+    const queue = guests
+      .filter((g) => selectedGuestIds.has(g.id) && g.phone)
+      .map((g) => ({ id: g.id, name: g.name, phone: g.phone!, personalLink: g.personalLink }));
+    if (queue.length === 0) {
+      toast.error('Pilih minimal 1 tamu dengan nomor HP');
+      return;
+    }
+    setBroadcastQueue(queue);
+    setBroadcastIndex(0);
+    setBroadcastSent(new Set());
+  };
+
+  const handleSendBroadcastItem = () => {
+    if (!broadcastQueue) return;
+    const guest = broadcastQueue[broadcastIndex];
+    handleWhatsApp(guest.name, guest.phone, guest.personalLink);
+    setBroadcastSent((prev) => new Set(prev).add(guest.id));
+    if (broadcastIndex < broadcastQueue.length - 1) {
+      setBroadcastIndex((i) => i + 1);
+    }
+  };
+
+  const handleCloseBroadcast = () => {
+    setBroadcastQueue(null);
+    setSelectedGuestIds(new Set());
   };
 
   const handleFileSelect = async (file: File) => {
@@ -172,7 +224,12 @@ export default function GuestsPage() {
   };
 
   const handleExportCsv = () => {
-    if (!canExport) return toast.error(UPGRADE_EXPORT_MESSAGE);
+    if (!canExport) {
+      toast.error(
+        'Fitur ini tidak tersedia pada paket Anda. Upgrade untuk menggunakannya.'
+      );
+      return;
+    }
     if (!guests?.length) return toast.error('Tidak ada tamu untuk diekspor');
     exportGuestsToCsv(
       guests.map((g) => ({
@@ -191,7 +248,12 @@ export default function GuestsPage() {
   };
 
   const handleExportExcel = () => {
-    if (!canExport) return toast.error(UPGRADE_EXPORT_MESSAGE);
+    if (!canExport) {
+      toast.error(
+        'Fitur ini tidak tersedia pada paket Anda. Upgrade untuk menggunakannya.'
+      );
+      return;
+    }
     if (!guests?.length) return toast.error('Tidak ada tamu untuk diekspor');
     exportGuestsToExcel(
       guests.map((g) => ({
@@ -210,7 +272,6 @@ export default function GuestsPage() {
   };
 
   const handleWhatsApp = (guestName: string, phone: string, personalLink: string) => {
-    if (!canBroadcast) return toast.error(UPGRADE_BROADCAST_MESSAGE);
     if (!phone) return toast.error('Nomor HP tamu tidak tersedia');
     if (!invitation) return;
 
@@ -238,19 +299,13 @@ export default function GuestsPage() {
     }
   };
 
-  const handleCopyLink = async (personalLink: string) => {
+  const handleCopyLink = (personalLink: string) => {
     if (!invitation) return;
-    try {
-      await navigator.clipboard.writeText(
-        buildGuestUrl(window.location.origin, invitation.slug, personalLink)
-      );
-      toast.success('Link personal disalin');
-    } catch {
-      toast.error('Gagal menyalin link');
-    }
+    const url = buildGuestUrl(window.location.origin, invitation.slug, personalLink);
+    navigator.clipboard.writeText(url).then(() => toast.success('Link disalin'));
   };
 
-  const statusFilters: { value: RsvpFilter; label: string; icon: typeof Users }[] = [
+  const statusFilters = [
     { value: '', label: 'Semua', icon: Users },
     { value: 'ATTENDING', label: 'Hadir', icon: UserCheck },
     { value: 'NOT_ATTENDING', label: 'Tidak Hadir', icon: UserX },
@@ -275,34 +330,24 @@ export default function GuestsPage() {
             <Upload className="mr-1.5 h-4 w-4" />
             Import
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCsv}
-            title={canExport ? 'Export ke CSV' : UPGRADE_EXPORT_MESSAGE}
-            className={cn(!canExport && 'opacity-60')}
-          >
-            {canExport ? (
-              <Download className="mr-1.5 h-4 w-4" />
-            ) : (
-              <Lock className="mr-1.5 h-4 w-4" />
-            )}
-            CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportExcel}
-            title={canExport ? 'Export ke Excel' : UPGRADE_EXPORT_MESSAGE}
-            className={cn(!canExport && 'opacity-60')}
-          >
-            {canExport ? (
-              <Download className="mr-1.5 h-4 w-4" />
-            ) : (
-              <Lock className="mr-1.5 h-4 w-4" />
-            )}
-            Excel
-          </Button>
+          {canExport && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleExportCsv}>
+                <Download className="mr-1.5 h-4 w-4" />
+                CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                <Download className="mr-1.5 h-4 w-4" />
+                Excel
+              </Button>
+            </>
+          )}
+          {canBroadcast && selectedGuestIds.size > 0 && (
+            <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={handleStartBroadcast}>
+              <MessageCircle className="mr-1.5 h-4 w-4" />
+              Broadcast WhatsApp ({selectedGuestIds.size})
+            </Button>
+          )}
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Tamu
@@ -310,7 +355,11 @@ export default function GuestsPage() {
         </div>
       </div>
 
-      <InvitationTabs invitationId={id} active="guests" />
+      <InvitationTabs
+        invitationId={id}
+        active="guests"
+        guestCount={stats?.total}
+      />
 
       {/* Stats Bar */}
       {statsLoading ? (
@@ -357,7 +406,13 @@ export default function GuestsPage() {
       </div>
 
       {/* Guest Table */}
-      {guestsLoading ? (
+      {guestsError ? (
+        <ErrorState
+          title="Gagal memuat daftar tamu"
+          message={guestsErrorObj?.message}
+          onRetry={() => refetchGuests()}
+        />
+      ) : guestsLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded-lg" />
@@ -369,6 +424,15 @@ export default function GuestsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={selectedGuestIds.size > 0 && selectedGuestIds.size === guests.filter((g) => g.phone).length}
+                      onChange={() => toggleSelectAll(guests.filter((g) => g.phone))}
+                      aria-label="Pilih semua tamu dengan nomor HP"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Nama</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">No. HP</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Grup</th>
@@ -382,6 +446,16 @@ export default function GuestsPage() {
                   const rsvpConfig = RSVP_STATUS[guest.rsvpStatus as keyof typeof RSVP_STATUS] || RSVP_STATUS.PENDING;
                   return (
                     <tr key={guest.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-input"
+                          checked={selectedGuestIds.has(guest.id)}
+                          disabled={!guest.phone}
+                          onChange={() => toggleSelectGuest(guest.id)}
+                          aria-label={`Pilih ${guest.name}`}
+                        />
+                      </td>
                       <td className="px-4 py-3 text-sm font-medium">{guest.name}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{guest.phone || '-'}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{guest.groupName || '-'}</td>
@@ -418,15 +492,8 @@ export default function GuestsPage() {
                           {guest.phone && (
                             <button
                               onClick={() => handleWhatsApp(guest.name, guest.phone!, guest.personalLink)}
-                              className={cn(
-                                'rounded p-1 hover:bg-green-50',
-                                canBroadcast ? 'text-green-600' : 'text-muted-foreground'
-                              )}
-                              title={
-                                canBroadcast
-                                  ? 'Kirim undangan via WhatsApp'
-                                  : UPGRADE_BROADCAST_MESSAGE
-                              }
+                              className="rounded p-1 text-green-600 hover:bg-green-50"
+                              title="Kirim via WhatsApp"
                             >
                               <MessageCircle className="h-4 w-4" />
                             </button>
@@ -471,7 +538,7 @@ export default function GuestsPage() {
       {/* Add Guest Dialog */}
       {showAddDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-label="Tambah Tamu" className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Tambah Tamu</h2>
               <Button variant="ghost" size="icon" onClick={() => setShowAddDialog(false)}>
@@ -522,7 +589,7 @@ export default function GuestsPage() {
       {/* Import Dialog */}
       {showImportDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-label="Import Tamu" className="mx-4 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Import Tamu</h2>
               <Button variant="ghost" size="icon" onClick={() => { setShowImportDialog(false); setImportFile(null); setImportPreview([]); }}>
@@ -555,6 +622,7 @@ export default function GuestsPage() {
               <p className="text-sm font-medium">{importFile ? importFile.name : 'Klik atau drag file ke sini'}</p>
               <p className="text-xs text-muted-foreground">CSV atau Excel (.xlsx)</p>
               <input
+                    name="guest-import-file" aria-label="Berkas impor tamu"
                 ref={fileInputRef}
                 type="file"
                 accept=".csv,.xlsx,.xls"
@@ -598,7 +666,7 @@ export default function GuestsPage() {
       {/* QR Code Modal */}
       {showQrModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl text-center">
+          <div role="dialog" aria-modal="true" aria-label="QR Code Tamu" className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl text-center">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">QR Code Tamu</h2>
               <Button variant="ghost" size="icon" onClick={() => setShowQrModal(null)}>
@@ -621,6 +689,75 @@ export default function GuestsPage() {
               <Download className="mr-2 h-4 w-4" />
               Unduh QR Code
             </Button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteGuestId}
+        onOpenChange={(open) => !open && setDeleteGuestId(null)}
+        title="Hapus Tamu?"
+        description="Data tamu ini beserta status RSVP dan link personalnya akan dihapus permanen."
+        confirmLabel="Ya, Hapus"
+        isLoading={deleteMutation.isLoading}
+        onConfirm={() => deleteGuestId && deleteMutation.mutate({ id: deleteGuestId })}
+      />
+
+      {/* Broadcast WhatsApp Queue Modal */}
+      {broadcastQueue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div role="dialog" aria-modal="true" aria-label="Broadcast WhatsApp" className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Broadcast WhatsApp</h2>
+              <Button variant="ghost" size="icon" onClick={handleCloseBroadcast}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <p className="mb-1 text-sm text-muted-foreground">
+              Progres: {broadcastSent.size} dari {broadcastQueue.length} terkirim
+            </p>
+            <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-green-600 transition-all"
+                style={{ width: `${(broadcastSent.size / broadcastQueue.length) * 100}%` }}
+              />
+            </div>
+
+            <div className="mb-4 max-h-48 space-y-1 overflow-y-auto rounded-lg border p-2">
+              {broadcastQueue.map((guest, i) => (
+                <div
+                  key={guest.id}
+                  className={cn(
+                    'flex items-center justify-between rounded px-2 py-1.5 text-sm',
+                    i === broadcastIndex && 'bg-primary/10 font-medium'
+                  )}
+                >
+                  <span>{guest.name}</span>
+                  {broadcastSent.has(guest.id) ? (
+                    <span className="text-xs text-green-600">Terkirim</span>
+                  ) : i === broadcastIndex ? (
+                    <span className="text-xs text-primary">Berikutnya</span>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            <p className="mb-3 text-xs text-muted-foreground">
+              Karena WhatsApp tidak mengizinkan pengiriman otomatis tanpa aksi pengguna, setiap tamu akan
+              membuka jendela WhatsApp berisi pesan siap kirim &mdash; Anda tinggal menekan tombol Kirim di WhatsApp.
+            </p>
+
+            {broadcastSent.size < broadcastQueue.length ? (
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={handleSendBroadcastItem}>
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Buka WhatsApp untuk {broadcastQueue[broadcastIndex].name}
+              </Button>
+            ) : (
+              <Button className="w-full" onClick={handleCloseBroadcast}>
+                Selesai
+              </Button>
+            )}
           </div>
         </div>
       )}

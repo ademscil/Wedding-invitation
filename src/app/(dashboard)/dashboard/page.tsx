@@ -6,24 +6,37 @@ import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { InvitationCard } from '@/components/dashboard/invitation-card';
+import { QuotaBanner } from '@/components/dashboard/quota-banner';
+import { VerificationBanner } from '@/components/dashboard/verification-banner';
+import { FloatingGem } from '@/components/3d/floating-gem';
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const { data: invitations, isLoading } = trpc.invitation.list.useQuery();
+  const {
+    data: invitations,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = trpc.invitation.list.useQuery();
 
   return (
     <div className="space-y-8">
       {/* Welcome */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold md:text-3xl">
-            Selamat datang, {session?.user?.name || 'Pengguna'}!
-          </h1>
-          <p className="text-muted-foreground">
-            Kelola undangan pernikahan digital Anda
-          </p>
+        <div className="flex items-center gap-3">
+          <FloatingGem className="h-16 w-16 shrink-0" />
+          <div>
+            <h1 className="text-2xl font-bold md:text-3xl">
+              Selamat datang, {session?.user?.name || 'Pengguna'}!
+            </h1>
+            <p className="text-muted-foreground">
+              Kelola undangan pernikahan digital Anda
+            </p>
+          </div>
         </div>
         <Link href="/dashboard/invitations/new">
           <Button>
@@ -33,8 +46,15 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      <VerificationBanner />
+
+      {/* Plan, quota and expiry */}
+      <QuotaBanner />
+
       {/* Stats */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      ) : isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />
