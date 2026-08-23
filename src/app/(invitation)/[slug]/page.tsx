@@ -16,11 +16,11 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  return buildInvitationMetadata(params.slug);
+  return buildInvitationMetadata({ slug: params.slug });
 }
 
 export default async function InvitationPage({ params, searchParams }: PageProps) {
   // `?to=` is the legacy personal-link form, kept working alongside
   // the /to/[guestSlug] path so links already sent to guests do not break.
-  return <InvitationView slug={params.slug} personalLink={searchParams.to} />;
+  return <InvitationView lookup={{ slug: params.slug }} personalLink={searchParams.to} />;
 }

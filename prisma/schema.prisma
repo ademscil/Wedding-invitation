@@ -82,7 +82,10 @@ model Invitation {
   id           String  @id @default(cuid())
   userId       String
   slug         String  @unique
-  customDomain String?
+  // Unique: the host header resolves to exactly one invitation, so two
+  // invitations must never be able to claim the same address.
+  customDomain String? @unique
+  customDomainVerifiedAt DateTime?
   templateId   String?
   status       String  @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED | EXPIRED
 

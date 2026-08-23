@@ -12,9 +12,11 @@ import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/constants';
  * Keeping one implementation means the watermark, expiry and analytics rules
  * cannot drift between them.
  */
-export async function getInvitation(slug: string) {
+export type InvitationLookup = { slug: string } | { domain: string };
+
+export async function getInvitationBy(lookup: InvitationLookup) {
   return prisma.invitation.findUnique({
-    where: { slug },
+    where: 'slug' in lookup ? { slug: lookup.slug } : { customDomain: lookup.domain },
     include: {
       template: true,
       // The owner's plan decides whether the watermark is rendered.
@@ -28,7 +30,12 @@ export async function getInvitation(slug: string) {
   });
 }
 
-type PublicInvitation = NonNullable<Awaited<ReturnType<typeof getInvitation>>>;
+/** Kept for callers that only ever resolve by slug. */
+export async function getInvitation(slug: string) {
+  return getInvitationBy({ slug });
+}
+
+type PublicInvitation = NonNullable<Awaited<ReturnType<typeof getInvitationBy>>>;
 
 /** Published and still inside the active window sold by the plan. */
 export function isLive(
@@ -68,8 +75,10 @@ async function resolveGuest(invitationId: string, personalLink: string) {
   return guest;
 }
 
-export async function buildInvitationMetadata(slug: string): Promise<Metadata> {
-  const invitation = await getInvitation(slug);
+export async function buildInvitationMetadata(
+  lookup: InvitationLookup
+): Promise<Metadata> {
+  const invitation = await getInvitationBy(lookup);
 
   if (!isLive(invitation)) {
     return { title: 'Undangan Tidak Ditemukan', robots: { index: false, follow: false } };
@@ -92,17 +101,26 @@ export async function buildInvitationMetadata(slug: string): Promise<Metadata> {
   }
   image = image || invitation.bridePhoto || invitation.groomPhoto || undefined;
 
+  /*
+   * Once a couple has a domain of their own, that is the address on the
+   * printed invitation. Pointing the canonical URL at the platform slug would
+   * hand the search ranking to a URL nobody was given.
+   */
+  const canonicalUrl = invitation.customDomain
+    ? `https://${invitation.customDomain}/`
+    : `/${invitation.slug}`;
+
   return {
     title,
     description,
-    alternates: { canonical: `/${slug}` },
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title,
       description,
       type: 'website',
       locale: 'id_ID',
       siteName: 'WedInvite',
-      url: `/${slug}`,
+      url: canonicalUrl,
       ...(image && { images: [{ url: image, alt: couple }] }),
     },
     twitter: {
@@ -115,12 +133,12 @@ export async function buildInvitationMetadata(slug: string): Promise<Metadata> {
 }
 
 interface InvitationViewProps {
-  slug: string;
+  lookup: InvitationLookup;
   personalLink?: string;
 }
 
-export async function InvitationView({ slug, personalLink }: InvitationViewProps) {
-  const invitation = await getInvitation(slug);
+export async function InvitationView({ lookup, personalLink }: InvitationViewProps) {
+  const invitation = await getInvitationBy(lookup);
 
   if (!isLive(invitation)) notFound();
 

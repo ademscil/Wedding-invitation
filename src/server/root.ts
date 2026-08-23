@@ -10,6 +10,7 @@ import { checkinRouter } from './routers/checkin';
 import { userRouter } from './routers/user';
 import { plannerRouter } from './routers/planner';
 import { seatingRouter } from './routers/seating';
+import { domainRouter } from './routers/domain';
 
 export const appRouter = router({
   invitation: invitationRouter,
@@ -23,6 +24,7 @@ export const appRouter = router({
   user: userRouter,
   planner: plannerRouter,
   seating: seatingRouter,
+  domain: domainRouter,
 });
 
 export type AppRouter = typeof appRouter;

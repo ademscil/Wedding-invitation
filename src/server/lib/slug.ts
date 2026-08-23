@@ -6,21 +6,37 @@ import type { PrismaClient } from '@prisma/client';
  * would be shadowed by it and the invitation would be unreachable.
  */
 const RESERVED_SLUGS = new Set([
+  // Real routes. A static segment wins over `/[slug]`, so an invitation given
+  // one of these names would never be reachable — the customer would pay for
+  // an address that silently serves someone else's page.
   'admin',
   'api',
   'dashboard',
   'login',
   'register',
   'pricing',
+  'auth-error',
+  'forgot-password',
+  'reset-password',
+  'verify-email',
+  'kebijakan-privasi',
+  'syarat-ketentuan',
+  // The internal target custom domains are rewritten to.
+  'd',
   'robots.txt',
   'sitemap.xml',
   'favicon.ico',
   '_next',
   'static',
   'public',
+  // Kept for names the marketing site is likely to claim next.
   'about',
   'terms',
   'privacy',
+  'blog',
+  'contact',
+  'support',
+  'templates',
 ]);
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;

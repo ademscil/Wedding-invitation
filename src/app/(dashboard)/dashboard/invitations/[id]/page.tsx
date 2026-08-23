@@ -27,6 +27,7 @@ import { ThemedUploadButton } from '@/components/ui/upload-button';
 import { cn } from '@/lib/utils';
 import { parseVideoUrl } from '@/lib/video';
 import { InvitationTabs } from '@/components/dashboard/invitation-tabs';
+import { CustomDomainCard } from '@/components/dashboard/custom-domain-card';
 import {
   parseEvents,
   parseBankAccounts,
@@ -377,6 +378,11 @@ export default function InvitationDetailPage() {
 
       {/* Detail Form */}
       <div className="space-y-4">
+        {/* Custom domain */}
+        <CollapsibleSection title="Domain Kustom">
+          <CustomDomainCard invitationId={id} />
+        </CollapsibleSection>
+
         {/* Couple Info */}
         <CollapsibleSection title="Data Mempelai" defaultOpen>
           <div className="space-y-4">
