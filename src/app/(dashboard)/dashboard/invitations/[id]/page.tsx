@@ -27,6 +27,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { ThemedUploadButton } from '@/components/ui/upload-button';
 import { cn } from '@/lib/utils';
 import { parseVideoUrl } from '@/lib/video';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { InvitationTabs } from '@/components/dashboard/invitation-tabs';
 import { CustomDomainCard } from '@/components/dashboard/custom-domain-card';
 import {
@@ -125,6 +126,15 @@ export default function InvitationDetailPage() {
   const [videoUrl, setVideoUrl] = useState('');
   const [showInSearch, setShowInSearch] = useState(true);
 
+  /*
+   * Everything the form owns, in one value. Comparing this against the
+   * snapshot taken at load — and refreshed on every successful save — is what
+   * decides whether there is unsaved work, without having to remember to flag
+   * each of the twenty-odd fields individually.
+   */
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  const [awaitingSnapshot, setAwaitingSnapshot] = useState(false);
+
   // Parsed here rather than on save so the owner sees a bad link rejected while
   // they are still looking at the field.
   const parsedVideo = useMemo(() => parseVideoUrl(videoUrl), [videoUrl]);
@@ -132,6 +142,34 @@ export default function InvitationDetailPage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [loveStory, setLoveStory] = useState<LoveStoryEntry[]>([]);
+
+  const formSnapshot = JSON.stringify({
+    brideName,
+    groomName,
+    selectedTemplateId,
+    brideParents,
+    groomParents,
+    weddingDate,
+    quote,
+    dressCode,
+    streamingUrl,
+    bridePhoto,
+    groomPhoto,
+    musicUrl,
+    videoUrl,
+    showInSearch,
+    events,
+    bankAccounts,
+    galleryImages,
+    loveStory,
+  });
+
+  const isDirty = savedSnapshot !== null && formSnapshot !== savedSnapshot;
+
+  useUnsavedChanges(
+    isDirty,
+    'Ada perubahan yang belum disimpan. Tinggalkan halaman ini?'
+  );
 
   // Populate form when data loads
   useEffect(() => {
@@ -159,12 +197,27 @@ export default function InvitationDetailPage() {
       setBankAccounts(parseBankAccounts(invitation.bankAccounts));
       setGalleryImages(parseGalleryImages(invitation.galleryImages));
       setLoveStory(parseLoveStory(invitation.loveStory));
+      // The snapshot cannot be taken here: this state has not committed yet.
+      setAwaitingSnapshot(true);
     }
   }, [invitation]);
+
+  /*
+   * Runs on the render after the form has been populated, when formSnapshot
+   * finally reflects the loaded values. That becomes the baseline everything
+   * is compared against.
+   */
+  useEffect(() => {
+    if (!awaitingSnapshot) return;
+    setSavedSnapshot(formSnapshot);
+    setAwaitingSnapshot(false);
+  }, [awaitingSnapshot, formSnapshot]);
 
   const updateMutation = trpc.invitation.update.useMutation({
     onSuccess: () => {
       toast.success('Undangan berhasil disimpan');
+      // What was just saved is the new baseline, so the page stops warning.
+      setSavedSnapshot(formSnapshot);
       utils.invitation.getById.invalidate({ id });
     },
     onError: () => {
@@ -906,11 +959,21 @@ export default function InvitationDetailPage() {
       </div>
 
       {/* Save Button */}
-      <div className="sticky bottom-4 flex justify-end">
+      <div className="sticky bottom-4 flex items-center justify-end gap-3">
+        {/*
+          * Says out loud that there is work in progress. The guard alone is
+          * invisible until you try to leave, by which point a prompt out of
+          * nowhere is startling rather than helpful.
+          */}
+        {isDirty && !updateMutation.isLoading && (
+          <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm dark:bg-amber-900/40 dark:text-amber-100">
+            Belum disimpan
+          </span>
+        )}
         <Button
           size="lg"
           onClick={handleSave}
-          disabled={updateMutation.isLoading}
+          disabled={updateMutation.isLoading || !isDirty}
           className="shadow-lg"
         >
           {updateMutation.isLoading ? (
@@ -918,7 +981,7 @@ export default function InvitationDetailPage() {
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          Simpan Perubahan
+          {isDirty ? 'Simpan Perubahan' : 'Tersimpan'}
         </Button>
       </div>
     </div>
