@@ -288,11 +288,19 @@ export default function PlannerPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href={`/dashboard/invitations/${id}`}>
-          <Button variant="ghost" size="icon">
+        {/*
+          * asChild renders one <a> styled as a button. A <button> nested in an
+          * <a> is invalid, and with only an icon inside it announces as
+          * nothing at all.
+          */}
+        <Button asChild variant="ghost" size="icon">
+          <Link
+            href={`/dashboard/invitations/${id}`}
+            aria-label="Kembali ke undangan"
+          >
             <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+          </Link>
+        </Button>
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Event Planner</h1>
           <p className="text-sm text-muted-foreground">

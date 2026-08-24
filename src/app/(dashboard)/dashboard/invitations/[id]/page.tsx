@@ -389,7 +389,12 @@ export default function InvitationDetailPage() {
             {typeof window !== 'undefined' ? window.location.origin : ''}
             /{invitation.slug}
           </code>
-          <Button variant="outline" size="sm" onClick={handleCopyLink}>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Salin tautan undangan"
+            onClick={handleCopyLink}
+          >
             <Copy className="h-4 w-4" />
           </Button>
         </CardContent>

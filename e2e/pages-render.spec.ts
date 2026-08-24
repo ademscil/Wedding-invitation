@@ -175,3 +175,72 @@ test('duplicating an invitation opens a fresh draft copy', async ({ page }) => {
     where: { userId: seeded.userId, id: { not: seeded.invitationId } },
   });
 });
+
+test('every control has a name a screen reader can announce', async ({ page }) => {
+  test.slow();
+
+  const { prisma } = await import('../src/lib/db');
+  await prisma.user.update({
+    where: { id: seeded.userId },
+    data: { role: 'ADMIN' },
+  });
+
+  await login(page);
+
+  const base = `/dashboard/invitations/${seeded.invitationId}`;
+  const routes = [
+    '/dashboard',
+    '/dashboard/invitations',
+    base,
+    `${base}/guests`,
+    `${base}/planner`,
+    '/admin/users',
+    '/admin/invitations',
+    '/admin/promos',
+  ];
+
+  const findings: string[] = [];
+
+  for (const route of routes) {
+    await page.goto(route, { waitUntil: 'networkidle' });
+
+    /*
+     * A control with no text, no aria-label and no associated <label> is
+     * announced as just "button" or "combobox" — the icon means nothing to
+     * anyone not looking at the screen.
+     */
+    const unnamed = await page.evaluate(() => {
+      const problems: string[] = [];
+      const controls = document.querySelectorAll<HTMLElement>(
+        'button, select, a[href], input:not([type="hidden"])'
+      );
+
+      controls.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const text = (el.textContent ?? '').trim();
+        const aria = el.getAttribute('aria-label')?.trim();
+        const labelledBy = el.getAttribute('aria-labelledby');
+        const title = el.getAttribute('title')?.trim();
+        const placeholder = el.getAttribute('placeholder')?.trim();
+        const labelled =
+          el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+
+        if (text || aria || labelledBy || title || placeholder || labelled) return;
+
+        problems.push(
+          `<${el.tagName.toLowerCase()} class="${el.className}">`.slice(0, 90)
+        );
+      });
+
+      return problems;
+    });
+
+    for (const problem of unnamed) findings.push(`${route}  ${problem}`);
+  }
+
+  expect(findings, `Controls with no accessible name:\n${findings.join('\n')}`).toEqual(
+    []
+  );
+});

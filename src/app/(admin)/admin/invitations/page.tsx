@@ -75,11 +75,16 @@ export default function AdminInvitationsPage() {
                         {formatDate(inv.createdAt)}
                       </td>
                       <td className="py-3">
-                        <Link href={`/${inv.slug}`} target="_blank">
-                          <Button variant="ghost" size="sm">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link
+                            href={`/${inv.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Buka undangan ${coupleNames(inv)} di tab baru`}
+                          >
                             <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </Link>
+                          </Link>
+                        </Button>
                       </td>
                     </tr>
                   ))}

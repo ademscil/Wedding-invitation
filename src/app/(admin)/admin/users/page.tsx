@@ -87,6 +87,7 @@ export default function AdminUsersPage() {
                       <td className="py-3 pr-4">
                         <select
                           className="rounded border bg-background px-2 py-1 text-xs"
+                          aria-label={`Paket untuk ${user.name || user.email}`}
                           value={user.subscriptionTier}
                           onChange={(e) =>
                             updateTier.mutate({ userId: user.id, tier: e.target.value as typeof TIERS[number] })
@@ -98,6 +99,7 @@ export default function AdminUsersPage() {
                       <td className="py-3">
                         <select
                           className="rounded border bg-background px-2 py-1 text-xs"
+                          aria-label={`Role untuk ${user.name || user.email}`}
                           value={user.role}
                           onChange={(e) =>
                             updateRole.mutate({ userId: user.id, role: e.target.value as 'USER' | 'ADMIN' })

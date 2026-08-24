@@ -560,8 +560,14 @@ export default function GuestsPage() {
                 onChange={(e) => setNewGuestPhone(e.target.value)}
               />
               <div className="w-full">
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Grup (opsional)</label>
+                <label
+                  htmlFor="new-guest-group"
+                  className="mb-1.5 block text-sm font-medium text-foreground"
+                >
+                  Grup (opsional)
+                </label>
                 <select
+                  id="new-guest-group"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={newGuestGroup}
                   onChange={(e) => setNewGuestGroup(e.target.value)}

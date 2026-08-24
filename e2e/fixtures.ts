@@ -160,6 +160,13 @@ const IGNORED_CONSOLE = [
    * faster than a person would.
    */
   /Failed to fetch RSC payload/i,
+  /*
+   * Same cause: next-auth logs this when its /api/auth/session request is
+   * aborted, which is what a navigation does to an in-flight fetch. A sweep
+   * that visits ten routes back to back produces it; a person clicking
+   * through does not.
+   */
+  /\[next-auth\]\[error\]\[CLIENT_FETCH_ERROR\]/i,
 ];
 
 export type ConsoleWatcher = { errors: string[]; assertClean: () => void };

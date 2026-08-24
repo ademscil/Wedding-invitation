@@ -178,6 +178,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           variant="ghost"
           size="sm"
           className="ml-auto text-destructive hover:text-destructive"
+          aria-label={`Hapus undangan ${coupleNames(invitation)}`}
           onClick={handleDelete}
           disabled={deleteMutation.isLoading}
         >
