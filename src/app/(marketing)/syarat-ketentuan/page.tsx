@@ -139,12 +139,16 @@ export default function TermsPage() {
           <h2 className="text-lg font-semibold">10. Kontak</h2>
           <p className="mt-2 text-muted-foreground">
             Pertanyaan mengenai ketentuan ini dapat dikirim ke{' '}
-            <a
-              href={`mailto:${siteConfig.supportEmail}`}
-              className="text-primary hover:underline"
-            >
-              {siteConfig.supportEmail}
-            </a>
+            {siteConfig.supportEmail ? (
+              <a
+                href={`mailto:${siteConfig.supportEmail}`}
+                className="text-primary hover:underline"
+              >
+                {siteConfig.supportEmail}
+              </a>
+            ) : (
+              <span>alamat dukungan kami</span>
+            )}
             .
           </p>
         </section>

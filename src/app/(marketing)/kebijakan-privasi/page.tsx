@@ -135,12 +135,16 @@ export default function PrivacyPage() {
           <h2 className="text-lg font-semibold">9. Kontak</h2>
           <p className="mt-2 text-muted-foreground">
             Pertanyaan atau permintaan terkait data dapat dikirim ke{' '}
-            <a
-              href={`mailto:${siteConfig.supportEmail}`}
-              className="text-primary hover:underline"
-            >
-              {siteConfig.supportEmail}
-            </a>
+            {siteConfig.supportEmail ? (
+              <a
+                href={`mailto:${siteConfig.supportEmail}`}
+                className="text-primary hover:underline"
+              >
+                {siteConfig.supportEmail}
+              </a>
+            ) : (
+              <span>alamat dukungan kami</span>
+            )}
             .
           </p>
         </section>

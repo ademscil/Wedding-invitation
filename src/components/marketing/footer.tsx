@@ -17,10 +17,24 @@ const legalLinks = [
   { label: 'Kebijakan Privasi', href: '/kebijakan-privasi' },
 ];
 
+/*
+ * A contact that has not been configured is left out entirely. Listing
+ * "WhatsApp" that opens a chat with nobody is worse than not listing it.
+ */
 const helpLinks = [
   { label: 'FAQ', href: '#faq' },
-  { label: 'Email Dukungan', href: `mailto:${siteConfig.supportEmail}`, external: true },
-  { label: 'WhatsApp', href: siteConfig.links.whatsapp, external: true },
+  ...(siteConfig.supportEmail
+    ? [
+        {
+          label: 'Email Dukungan',
+          href: `mailto:${siteConfig.supportEmail}`,
+          external: true,
+        },
+      ]
+    : []),
+  ...(siteConfig.links.whatsapp
+    ? [{ label: 'WhatsApp', href: siteConfig.links.whatsapp, external: true }]
+    : []),
 ];
 
 export function Footer() {
