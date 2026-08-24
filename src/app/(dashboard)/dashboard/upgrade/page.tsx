@@ -6,6 +6,7 @@ import { Check } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SUBSCRIPTION_TIERS as TIERS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { FloatingGem } from '@/components/3d/floating-gem';
@@ -61,7 +62,10 @@ export default function UpgradePage() {
     plan: string;
   } | null>(null);
   const { update: updateSession } = useSession();
-  const { data: subscription } = trpc.payment.getSubscription.useQuery();
+  const {
+    data: subscription,
+    isLoading: subscriptionLoading,
+  } = trpc.payment.getSubscription.useQuery();
   const createCheckout = trpc.payment.createCheckout.useMutation();
   const confirmPayment = trpc.payment.confirmPayment.useMutation({
     onSuccess: async () => {
@@ -156,9 +160,23 @@ export default function UpgradePage() {
       <div className="text-center">
         <FloatingGem className="mx-auto mb-2 h-20 w-20" />
         <h1 className="text-3xl font-bold">Upgrade Paket</h1>
-        <p className="mt-2 text-muted-foreground">
-          Paket Anda saat ini: <span className="font-semibold text-primary">{TIERS[currentTier as keyof typeof TIERS].name}</span>
-        </p>
+        {/*
+          * Until the subscription is known, this line would read "Gratis" for
+          * a paying customer — the one thing they most want confirmed on the
+          * page where they are deciding whether to pay again.
+          */}
+        {subscriptionLoading ? (
+          <div className="mt-2 flex justify-center">
+            <Skeleton className="h-5 w-56" />
+          </div>
+        ) : (
+          <p className="mt-2 text-muted-foreground">
+            Paket Anda saat ini:{' '}
+            <span className="font-semibold text-primary">
+              {TIERS[currentTier as keyof typeof TIERS].name}
+            </span>
+          </p>
+        )}
       </div>
 
       <PromoCodeField

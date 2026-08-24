@@ -136,6 +136,9 @@ test.describe('dashboard', () => {
 
   for (const viewport of VIEWPORTS) {
     test(`no horizontal overflow at ${viewport.width}px`, async ({ page }) => {
+      // Eleven routes in one test since the admin screens were added, each
+      // compiled on demand by the dev server.
+      test.slow();
       const { login } = await import('./fixtures');
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await login(page);

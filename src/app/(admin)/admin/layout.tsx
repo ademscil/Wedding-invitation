@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { LogOut } from 'lucide-react';
 import { authOptions } from '@/lib/auth';
 import { Providers } from '@/components/providers/TRPCProvider';
+import { PageTransition } from '@/components/ui/page-transition';
 import { AdminSidebarNav, AdminTopNav } from './admin-nav';
 
 export default async function AdminLayout({
@@ -47,7 +48,9 @@ export default async function AdminLayout({
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Scrollable pill nav — narrow screens */}
           <AdminTopNav />
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="min-w-0 flex-1">
+            <PageTransition>{children}</PageTransition>
+          </main>
         </div>
       </div>
     </Providers>

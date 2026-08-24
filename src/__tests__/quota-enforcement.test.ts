@@ -150,6 +150,11 @@ describe.skipIf(!hasDatabase)('invitation visibility', () => {
   beforeEach(cleanup);
   afterEach(cleanup);
 
+  /*
+   * Importing the invitation view pulls in all fourteen templates and
+   * framer-motion with them, which alone can exceed the 5s default before a
+   * single assertion runs.
+   */
   it('stops serving an invitation once its paid window has closed', async () => {
     const prisma = await db();
     const { isLive } = await import('@/app/(invitation)/[slug]/invitation-view');
@@ -195,5 +200,5 @@ describe.skipIf(!hasDatabase)('invitation visibility', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(isLive(draft as any)).toBe(false);
     expect(isLive(null)).toBe(false);
-  });
+  }, 30_000);
 });

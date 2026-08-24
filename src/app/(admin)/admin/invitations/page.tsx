@@ -28,11 +28,15 @@ export default function AdminInvitationsPage() {
         </CardHeader>
         <CardContent>
           {isError ? (
-        <ErrorState message={error?.message} onRetry={() => refetch()} />
-      ) : isLoading ? (
+            <ErrorState message={error?.message} onRetry={() => refetch()} />
+          ) : isLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12" />)}
             </div>
+          ) : !data || data.invitations.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Belum ada undangan dibuat.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

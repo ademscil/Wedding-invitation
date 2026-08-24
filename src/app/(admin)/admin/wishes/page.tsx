@@ -6,6 +6,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 import { coupleNames } from '@/lib/invitation-data';
@@ -13,7 +14,7 @@ import { coupleNames } from '@/lib/invitation-data';
 export default function AdminWishesPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<boolean | undefined>(false);
-  const { data, isLoading, refetch } = trpc.admin.listWishes.useQuery({
+  const { data, isLoading, isError, error, refetch } = trpc.admin.listWishes.useQuery({
     page,
     limit: 20,
     isApproved: filter,
@@ -52,7 +53,9 @@ export default function AdminWishesPage() {
           <CardTitle>Daftar Ucapan</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isError ? (
+            <ErrorState message={error?.message} onRetry={() => refetch()} />
+          ) : isLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16" />)}
             </div>

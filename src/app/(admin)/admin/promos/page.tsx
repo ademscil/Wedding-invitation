@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +23,7 @@ function todayPlus(days: number): string {
 
 export default function AdminPromosPage() {
   const utils = trpc.useUtils();
-  const { data: promos, isLoading } = trpc.admin.listPromos.useQuery();
+  const { data: promos, isLoading, isError, error, refetch } = trpc.admin.listPromos.useQuery();
 
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
@@ -214,7 +215,9 @@ export default function AdminPromosPage() {
           <CardTitle className="text-base">Daftar Kode</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isError ? (
+            <ErrorState message={error?.message} onRetry={() => refetch()} />
+          ) : isLoading ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
                 <Skeleton key={i} className="h-12" />

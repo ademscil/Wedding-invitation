@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { ThemedUploadButton } from '@/components/ui/upload-button';
 import { cn } from '@/lib/utils';
 import { parseVideoUrl } from '@/lib/video';
@@ -95,10 +96,13 @@ export default function InvitationDetailPage() {
   const router = useRouter();
   const id = params.id as string;
 
-  const { data: invitation, isLoading } = trpc.invitation.getById.useQuery(
-    { id },
-    { enabled: !!id }
-  );
+  const {
+    data: invitation,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = trpc.invitation.getById.useQuery({ id }, { enabled: !!id });
   const { data: templates, isLoading: templatesLoading } =
     trpc.template.list.useQuery();
   const utils = trpc.useUtils();
@@ -299,6 +303,23 @@ export default function InvitationDetailPage() {
             <Skeleton key={i} className="h-32 rounded-lg" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  /*
+   * A failed request is not the same as a missing invitation. Falling through
+   * to "tidak ditemukan" told someone whose connection dropped that their
+   * wedding data was gone.
+   */
+  if (isError) {
+    return (
+      <div className="mx-auto max-w-2xl py-10">
+        <ErrorState
+          title="Gagal memuat undangan"
+          message={error?.message}
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }

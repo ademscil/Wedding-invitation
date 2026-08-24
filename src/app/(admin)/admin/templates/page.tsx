@@ -3,11 +3,12 @@
 import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 
 export default function AdminTemplatesPage() {
-  const { data: templates, isLoading, refetch } = trpc.admin.listTemplates.useQuery();
+  const { data: templates, isLoading, isError, error, refetch } = trpc.admin.listTemplates.useQuery();
   const updateTemplate = trpc.admin.updateTemplate.useMutation({
     onSuccess: () => { toast.success('Template diperbarui'); refetch(); },
     onError: () => toast.error('Gagal memperbarui template'),
@@ -25,7 +26,9 @@ export default function AdminTemplatesPage() {
           <CardTitle>Daftar Template</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isError ? (
+            <ErrorState message={error?.message} onRetry={() => refetch()} />
+          ) : isLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12" />)}
             </div>

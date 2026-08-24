@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { toast } from 'sonner';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -15,7 +16,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
 
-  const { data, isLoading, refetch } = trpc.admin.listUsers.useQuery({ page, limit: 20, search });
+  const { data, isLoading, isError, error, refetch } = trpc.admin.listUsers.useQuery({ page, limit: 20, search });
   const updateTier = trpc.admin.updateUserTier.useMutation({
     onSuccess: () => { toast.success('Tier diperbarui'); refetch(); },
     onError: () => toast.error('Gagal memperbarui tier'),
@@ -52,10 +53,19 @@ export default function AdminUsersPage() {
           <CardTitle>Daftar Pengguna</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isError ? (
+            <ErrorState message={error?.message} onRetry={() => refetch()} />
+          ) : isLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12" />)}
             </div>
+          ) : !data || data.users.length === 0 ? (
+            /* A bare table header reads as broken, especially after a search. */
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              {search.trim()
+                ? `Tidak ada pengguna yang cocok dengan "${search}".`
+                : 'Belum ada pengguna terdaftar.'}
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
