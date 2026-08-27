@@ -70,30 +70,6 @@ describe.skipIf(!hasDatabase)('sitemap', () => {
     expect(listed.some((url) => url.includes('zz-sm-draft'))).toBe(false);
   });
 
-  it('points at the custom domain when one is connected', async () => {
-    const prisma = await db();
-    const user = await prisma.user.create({
-      data: { email: EMAIL, name: 'ZZ Sitemap' },
-    });
-
-    await prisma.invitation.create({
-      data: {
-        userId: user.id,
-        slug: 'zz-sm-domain',
-        status: 'PUBLISHED',
-        customDomain: 'zz-sitemap-test.example',
-        brideName: 'A',
-        groomName: 'B',
-      },
-    });
-
-    const listed = await urls();
-
-    // The platform slug would compete with the canonical the page declares.
-    expect(listed).toContain('https://zz-sitemap-test.example/');
-    expect(listed.some((url) => url.endsWith('/zz-sm-domain'))).toBe(false);
-  });
-
   it('leaves out a couple who opted out of search', async () => {
     const prisma = await db();
     const user = await prisma.user.create({

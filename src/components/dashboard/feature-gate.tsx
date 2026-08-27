@@ -9,7 +9,6 @@ import { Card, CardContent } from '@/components/ui/card';
 type Feature =
   | 'hasLoveStory'
   | 'hasCustomMusic'
-  | 'hasCustomDomain'
   | 'hasAnalytics'
   | 'hasBroadcast'
   | 'hasExport'

@@ -141,7 +141,6 @@ export const userRouter = router({
       features: {
         hasLoveStory: limits.hasLoveStory,
         hasCustomMusic: limits.hasCustomMusic,
-        hasCustomDomain: limits.hasCustomDomain,
         hasAnalytics: limits.hasAnalytics,
         hasBroadcast: limits.hasBroadcast,
         hasExport: limits.hasExport,

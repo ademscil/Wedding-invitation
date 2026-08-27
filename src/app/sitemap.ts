@@ -27,16 +27,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
        */
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
-    select: { slug: true, updatedAt: true, customDomain: true, settings: true },
+    select: { slug: true, updatedAt: true, settings: true },
   });
 
   const invitationPages: MetadataRoute.Sitemap = publishedInvitations
     // A couple who asked to stay out of search stays out of the sitemap too.
     .filter((inv) => parseSettings(inv.settings).showInSearch !== false)
     .map((inv) => ({
-      // Once a couple has their own domain, that is the address guests were
-      // given and the one the page declares canonical.
-      url: inv.customDomain ? `https://${inv.customDomain}/` : `${baseUrl}/${inv.slug}`,
+      url: `${baseUrl}/${inv.slug}`,
       lastModified: inv.updatedAt,
       changeFrequency: 'weekly' as const,
       priority: 0.6,

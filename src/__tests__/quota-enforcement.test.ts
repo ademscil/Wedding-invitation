@@ -91,8 +91,8 @@ describe.skipIf(!hasDatabase)('plan enforcement', () => {
     const user = await makeUser('FREE');
 
     await expect(
-      assertFeature(prisma, user.id, 'hasCustomDomain')
-    ).rejects.toThrow(/domain kustom/i);
+      assertFeature(prisma, user.id, 'hasBroadcast')
+    ).rejects.toThrow(/broadcast/i);
 
     await prisma.user.update({
       where: { id: user.id },
@@ -100,7 +100,7 @@ describe.skipIf(!hasDatabase)('plan enforcement', () => {
     });
 
     await expect(
-      assertFeature(prisma, user.id, 'hasCustomDomain')
+      assertFeature(prisma, user.id, 'hasBroadcast')
     ).resolves.toBeUndefined();
   });
 
@@ -112,7 +112,7 @@ describe.skipIf(!hasDatabase)('plan enforcement', () => {
 
     const { limits } = await getUserLimits(prisma, user.id);
     expect(limits.maxInvitations).toBe(1);
-    expect(limits.hasCustomDomain).toBe(false);
+    expect(limits.hasBroadcast).toBe(false);
   });
 
   it('caps gallery images on a Free account', async () => {

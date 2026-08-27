@@ -47,7 +47,6 @@ function quotaError(message: string): TRPCError {
 export type FeatureFlag =
   | 'hasLoveStory'
   | 'hasCustomMusic'
-  | 'hasCustomDomain'
   | 'hasAnalytics'
   | 'hasBroadcast'
   | 'hasExport'
@@ -57,7 +56,6 @@ export type FeatureFlag =
 const FEATURE_LABELS: Record<FeatureFlag, string> = {
   hasLoveStory: 'Love story',
   hasCustomMusic: 'Musik kustom',
-  hasCustomDomain: 'Domain kustom',
   hasAnalytics: 'Statistik undangan',
   hasBroadcast: 'Broadcast WhatsApp',
   hasExport: 'Export data tamu',

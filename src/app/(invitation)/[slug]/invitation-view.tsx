@@ -14,11 +14,11 @@ import { coupleNames } from '@/lib/invitation-data';
  * Keeping one implementation means the watermark, expiry and analytics rules
  * cannot drift between them.
  */
-export type InvitationLookup = { slug: string } | { domain: string };
+export type InvitationLookup = { slug: string };
 
 export async function getInvitationBy(lookup: InvitationLookup) {
   return prisma.invitation.findUnique({
-    where: 'slug' in lookup ? { slug: lookup.slug } : { customDomain: lookup.domain },
+    where: { slug: lookup.slug },
     include: {
       template: true,
       // The owner's plan decides whether the watermark is rendered.
@@ -103,14 +103,7 @@ export async function buildInvitationMetadata(
   }
   image = image || invitation.bridePhoto || invitation.groomPhoto || undefined;
 
-  /*
-   * Once a couple has a domain of their own, that is the address on the
-   * printed invitation. Pointing the canonical URL at the platform slug would
-   * hand the search ranking to a URL nobody was given.
-   */
-  const canonicalUrl = invitation.customDomain
-    ? `https://${invitation.customDomain}/`
-    : `/${invitation.slug}`;
+  const canonicalUrl = `/${invitation.slug}`;
 
   return {
     title,
