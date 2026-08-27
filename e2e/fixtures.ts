@@ -243,3 +243,71 @@ export async function dragElement(
   await page.waitForTimeout(100);
   await page.mouse.up();
 }
+
+/**
+ * The published invitation the public-page specs read.
+ *
+ * It used to be a row somebody created by hand and left in the database, so
+ * the specs passed or failed depending on whether that row still existed —
+ * and it eventually did not. Seeding it here makes those specs self-contained:
+ * they describe the invitation they need rather than assuming one.
+ *
+ * Idempotent, so it is safe to call from several specs in the same run.
+ */
+export const AUDIT_SLUG = 'audit-demo';
+export const AUDIT_EMAIL = 'zz-audit@example.invalid';
+
+export async function seedAuditDemo() {
+  const prisma = await db();
+
+  const user = await prisma.user.upsert({
+    where: { email: AUDIT_EMAIL },
+    update: { subscriptionTier: 'BUSINESS' },
+    create: {
+      email: AUDIT_EMAIL,
+      name: 'ZZ Audit',
+      subscriptionTier: 'BUSINESS',
+    },
+  });
+
+  const template = await prisma.template.findFirst({ where: { isActive: true } });
+
+  const content = {
+    brideName: 'Siti Nurhaliza Ramadhani',
+    groomName: 'Muhammad Rizky Pratama',
+    brideParents: 'Bapak Slamet & Ibu Ratna',
+    groomParents: 'Bapak Hendra & Ibu Sari',
+    status: 'PUBLISHED',
+    templateId: template?.id,
+    weddingDate: new Date('2027-06-12'),
+    expiresAt: null,
+    events: JSON.stringify([
+      {
+        id: 'e1',
+        name: 'Akad Nikah',
+        date: '2027-06-12',
+        startTime: '08:00',
+        endTime: '10:00',
+        venue: 'Masjid Agung',
+        address: 'Jl. Merdeka No. 1, Bandung',
+      },
+      {
+        id: 'e2',
+        name: 'Resepsi',
+        date: '2027-06-12',
+        startTime: '11:00',
+        endTime: '14:00',
+        venue: 'Gedung Serbaguna',
+        address: 'Jl. Merdeka No. 1, Bandung',
+      },
+    ]),
+    // The video specs overwrite this key; it starts set so the section exists.
+    settings: JSON.stringify({ videoUrl: 'https://youtu.be/dQw4w9WgXcQ' }),
+  };
+
+  await prisma.invitation.upsert({
+    where: { slug: AUDIT_SLUG },
+    update: content,
+    create: { ...content, slug: AUDIT_SLUG, userId: user.id },
+  });
+}

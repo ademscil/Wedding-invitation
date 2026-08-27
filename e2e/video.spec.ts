@@ -1,6 +1,7 @@
 import path from 'node:path';
 import dotenv from 'dotenv';
 import { test, expect } from '@playwright/test';
+import { seedAuditDemo } from './fixtures';
 
 dotenv.config({ path: path.join(process.cwd(), '.env.local') });
 
@@ -44,6 +45,10 @@ async function setVideoUrl(url: string | null) {
     data: { settings: JSON.stringify(settings) },
   });
 }
+
+test.beforeAll(async () => {
+  await seedAuditDemo();
+});
 
 test.afterAll(async () => {
   await setVideoUrl(VIDEO_URL);

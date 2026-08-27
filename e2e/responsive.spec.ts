@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { seedAuditDemo } from './fixtures';
 
 /**
  * Responsive regression guard.
@@ -8,6 +9,10 @@ import { test, expect, type Page } from '@playwright/test';
  * These tests load each public page at a spread of widths and assert nothing
  * overflows, and report which element caused it when something does.
  */
+
+test.beforeAll(async () => {
+  await seedAuditDemo();
+});
 
 const VIEWPORTS = [
   { name: 'phone-small', width: 320, height: 640 },
