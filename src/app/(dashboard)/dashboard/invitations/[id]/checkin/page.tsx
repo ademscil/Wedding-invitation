@@ -24,7 +24,6 @@ export default function CheckinPage() {
   const [manualCode, setManualCode] = useState('');
   const [result, setResult] = useState<CheckinResult>(null);
   const [scanning, setScanning] = useState(false);
-  const scannerRef = useRef<HTMLDivElement>(null);
 
   const { data: stats, refetch: refetchStats } = trpc.checkin.getCheckinStats.useQuery(
     { invitationId: id },
@@ -58,29 +57,58 @@ export default function CheckinPage() {
     }
   };
 
+  /*
+   * `handleScan` closes over `verify`, which is a new object on every render.
+   * The scanner is only built once per session, so the callback it holds has
+   * to read the current one through a ref — otherwise it keeps calling the
+   * mutation captured when the camera started, and the in-flight guard below
+   * never sees a pending request.
+   */
+  const handleScanRef = useRef(handleScan);
+  handleScanRef.current = handleScan;
+
   useEffect(() => {
-    if (!scanning || !scannerRef.current) return;
+    if (!scanning) return;
 
-    let html5QrCode: { stop: () => Promise<void> } | null = null;
+    let scanner: { clear: () => Promise<void> } | null = null;
+    let cancelled = false;
 
-    import('html5-qrcode').then(({ Html5QrcodeScanner }) => {
-      const scanner = new Html5QrcodeScanner(
-        'qr-reader',
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        false
-      );
-      scanner.render(
-        (decodedText: string) => {
-          handleScan(decodedText);
-        },
-        () => {}
-      );
-      html5QrCode = scanner as unknown as { stop: () => Promise<void> };
-    });
+    import('html5-qrcode')
+      .then(({ Html5QrcodeScanner }) => {
+        // The user pressed Stop while the library was still loading.
+        if (cancelled) return;
+
+        const instance = new Html5QrcodeScanner(
+          'qr-reader',
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          false
+        );
+        instance.render(
+          (decodedText: string) => handleScanRef.current(decodedText),
+          () => {
+            // Fires continuously for every frame without a code in it.
+          }
+        );
+        scanner = instance;
+      })
+      .catch(() => {
+        setScanning(false);
+        toast.error('Gagal memuat pemindai QR. Coba muat ulang halaman.');
+      });
 
     return () => {
-      html5QrCode?.stop().catch(() => {});
+      cancelled = true;
+      /*
+       * `clear()`, not `stop()`: `stop()` belongs to the lower-level
+       * `Html5Qrcode` class and is undefined here, so the old teardown threw
+       * before it could release anything and the camera stayed on — with its
+       * indicator light — until the tab was closed.
+       */
+      scanner?.clear().catch(() => {
+        // Already torn down, or the element is gone. Nothing left to release.
+      });
     };
+    // `handleScan` is read through a ref, so it must not restart the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanning]);
 
@@ -161,7 +189,7 @@ export default function CheckinPage() {
               </div>
             )}
 
-            <div id="qr-reader" ref={scannerRef} />
+            <div id="qr-reader" />
 
             <Button
               variant={scanning ? 'destructive' : 'default'}
@@ -182,6 +210,7 @@ export default function CheckinPage() {
 
             <div className="flex gap-2">
               <Input
+                aria-label="Kode personal tamu"
                 placeholder="Kode personal tamu..."
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
