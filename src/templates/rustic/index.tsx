@@ -28,7 +28,7 @@ function parseSettings(settingsJson: string): InvitationSettings {
   }
 }
 
-const rusticTheme: TemplateTheme = {
+export const rusticTheme: TemplateTheme = {
   colors: {
     primary: '#5C4033',
     secondary: '#A0785A',
@@ -49,8 +49,10 @@ function LeafDivider({ color }: { color: string }) {
     <div className="flex items-center justify-center py-6">
       <svg width="220" height="32" viewBox="0 0 220 32" fill="none">
         <path d="M0 16h70M150 16h70" stroke={color} strokeWidth="0.5" opacity="0.4" />
-        <path d="M80 16c5-8 12-12 20-12s15 4 20 12" fill={color} opacity="0.15" />
-        <path d="M80 16c5 8 12 12 20 12s15-4 20-12" fill={color} opacity="0.15" />
+        {/* Drawn from x=90 so the leaf is centred on the 220-wide box, in line
+            with the rules and the berries either side of it. */}
+        <path d="M90 16c5-8 12-12 20-12s15 4 20 12" fill={color} opacity="0.15" />
+        <path d="M90 16c5 8 12 12 20 12s15-4 20-12" fill={color} opacity="0.15" />
         <circle cx="78" cy="16" r="2" fill={color} opacity="0.4" />
         <circle cx="142" cy="16" r="2" fill={color} opacity="0.4" />
         <circle cx="110" cy="4" r="2.5" fill={color} opacity="0.3" />

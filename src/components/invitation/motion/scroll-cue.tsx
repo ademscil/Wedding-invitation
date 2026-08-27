@@ -56,7 +56,7 @@ export function ScrollProgress({ color }: { color: string }) {
   return (
     <motion.div
       aria-hidden="true"
-      className="fixed inset-x-0 top-0 z-50 h-0.5 origin-left"
+      className="wi-fixed fixed inset-x-0 top-0 z-50 h-0.5 origin-left"
       style={{ scaleX, backgroundColor: color }}
     />
   );

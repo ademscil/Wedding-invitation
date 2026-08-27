@@ -28,7 +28,7 @@ function parseSettings(s: string): InvitationSettings {
   }
 }
 
-const theme: TemplateTheme = {
+export const theme: TemplateTheme = {
   colors: {
     primary: '#7A2E3A',
     secondary: '#C79A5A',
@@ -112,7 +112,6 @@ function StaggeredGreeting({
 function ArchDivider() {
   return (
     <div className="flex items-center justify-center gap-3 py-6">
-      <Ambience theme={theme} particle="petal" />
       <div className="h-px w-16" style={{ backgroundColor: theme.colors.secondary + '80' }} />
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
         <path
@@ -134,6 +133,7 @@ export function VintageArchTemplate({ invitation, guestName, personalLink, isPre
 
   return (
     <div style={{ backgroundColor: theme.colors.background, color: theme.colors.text, fontFamily: theme.fonts.body }}>
+      <Ambience theme={theme} particle="petal" />
       {!isPreview && (
         <CoverSection invitation={invitation} guestName={guestName} theme={theme} onOpen={() => setIsOpened(true)} particle="petal"
           />

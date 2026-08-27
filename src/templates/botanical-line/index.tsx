@@ -28,7 +28,7 @@ function parseSettings(s: string): InvitationSettings {
   }
 }
 
-const theme: TemplateTheme = {
+export const theme: TemplateTheme = {
   colors: {
     primary: '#3F5A3D',
     secondary: '#A8B78A',
@@ -47,7 +47,6 @@ const theme: TemplateTheme = {
 function LeafDivider() {
   return (
     <div className="flex items-center justify-center gap-3 py-6">
-      <Ambience theme={theme} particle="leaf" />
       <div className="h-px w-16" style={{ backgroundColor: theme.colors.secondary + '80' }} />
       <svg width="32" height="20" viewBox="0 0 32 20" fill="none">
         <path
@@ -111,6 +110,7 @@ export function BotanicalLineTemplate({ invitation, guestName, personalLink, isP
 
   return (
     <div style={{ backgroundColor: theme.colors.background, color: theme.colors.text, fontFamily: theme.fonts.body }}>
+      <Ambience theme={theme} particle="leaf" />
       {!isPreview && (
         <CoverSection invitation={invitation} guestName={guestName} theme={theme} onOpen={() => setIsOpened(true)} particle="leaf"
           />

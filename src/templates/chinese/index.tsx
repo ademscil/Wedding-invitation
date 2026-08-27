@@ -18,7 +18,7 @@ import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
 import { coupleNames } from '@/lib/invitation-data';
 
-const chineseTheme: TemplateTheme = {
+export const chineseTheme: TemplateTheme = {
   colors: {
     primary: '#C0392B',
     secondary: '#F39C12',
@@ -37,7 +37,6 @@ const chineseTheme: TemplateTheme = {
 function DoubleLuckDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-4 py-8">
-      <Ambience theme={theme} particle="petal" />
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.primary + '40' }} />
       <span className="text-2xl font-bold" style={{ color: theme.colors.primary, lineHeight: 1 }} title="Double Happiness">
         囍
@@ -63,6 +62,7 @@ export function ChineseTemplate({ invitation, guestName,
 
   return (
     <div style={{ backgroundColor: theme.colors.background, color: theme.colors.text, fontFamily: theme.fonts.body }}>
+      <Ambience theme={theme} particle="petal" />
       {!isPreview && (
         <CoverSection
           invitation={invitation}

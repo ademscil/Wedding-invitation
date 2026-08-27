@@ -62,25 +62,21 @@ function LoveStoryTimeline({
         <div className="relative" ref={timelineRef}>
           {/* The rule fills in as the section scrolls, so the story reads as
               a path being travelled rather than a list already laid out. */}
+          {/*
+            * One rail down the left, at every width.
+            *
+            * There used to be a second, centred rail behind `md:` for wide
+            * screens. The invitation is now always read in a phone-width
+            * column, but `md:` asks the browser window — so on a laptop the
+            * alternating two-column story was being squeezed into 460px, two
+            * rails deep, with each entry about 190px wide.
+            */}
           <div
-            className="absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 md:block"
+            className="absolute left-6 top-0 h-full w-px"
             style={{ backgroundColor: theme.colors.secondary + '20' }}
           />
           <motion.div
-            className="absolute left-1/2 top-0 hidden w-px -translate-x-1/2 origin-top md:block"
-            style={{
-              backgroundColor: theme.colors.secondary,
-              height: '100%',
-              scaleY: reduced ? 1 : timelineProgress,
-            }}
-          />
-
-          <div
-            className="absolute left-6 top-0 h-full w-px md:hidden"
-            style={{ backgroundColor: theme.colors.secondary + '20' }}
-          />
-          <motion.div
-            className="absolute left-6 top-0 w-px origin-top md:hidden"
+            className="absolute left-6 top-0 w-px origin-top"
             style={{
               backgroundColor: theme.colors.secondary,
               height: '100%',
@@ -102,22 +98,12 @@ function LoveStoryTimeline({
               >
                 {/* Timeline dot */}
                 <div
-                  className="absolute left-6 top-2 z-10 hidden h-3 w-3 -translate-x-1/2 rounded-full md:left-1/2 md:block"
-                  style={{ backgroundColor: theme.colors.primary }}
-                />
-                <div
-                  className="absolute left-6 top-2 z-10 h-3 w-3 -translate-x-1/2 rounded-full md:hidden"
+                  className="absolute left-6 top-2 z-10 h-3 w-3 -translate-x-1/2 rounded-full"
                   style={{ backgroundColor: theme.colors.primary }}
                 />
 
                 {/* Content */}
-                <div
-                  className={`ml-12 md:ml-0 md:w-5/12 ${
-                    isEven
-                      ? 'md:mr-auto md:pr-8 md:text-right'
-                      : 'md:ml-auto md:pl-8 md:text-left'
-                  }`}
-                >
+                <div className="ml-12">
                   <span
                     className="mb-1 inline-block rounded-full px-3 py-1 text-xs font-medium"
                     style={{

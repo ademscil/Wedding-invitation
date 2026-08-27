@@ -28,7 +28,7 @@ function parseSettings(settingsJson: string): InvitationSettings {
   }
 }
 
-const minimalistTheme: TemplateTheme = {
+export const minimalistTheme: TemplateTheme = {
   colors: {
     primary: '#2C2C2C',
     secondary: '#A0A0A0',

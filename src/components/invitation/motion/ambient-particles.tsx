@@ -117,7 +117,7 @@ export function AmbientParticles({
     <div
       ref={containerRef}
       aria-hidden="true"
-      className={`pointer-events-none fixed inset-0 z-0 overflow-hidden ${className ?? ''}`}
+      className={`wi-fixed pointer-events-none fixed inset-y-0 left-[var(--wi-gutter)] right-[var(--wi-gutter)] z-0 overflow-hidden ${className ?? ''}`}
     >
       {particles.map((particle) => (
         <span

@@ -36,6 +36,11 @@ function generateCalendarUrl(event: InvitationEvent): string {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDate}T${startTime}/${startDate}T${endTime}&location=${location}`;
 }
 
+function mapsUrl(event: InvitationEvent): string {
+  const query = encodeURIComponent(`${event.venue}, ${event.address}`);
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+}
+
 // Vertical connecting-line timeline layout (akad/resepsi style), unlike the card-grid EventsSection
 export function TimelineEventsSection({
   invitation,
@@ -74,12 +79,17 @@ export function TimelineEventsSection({
         <div className="relative">
           {events.length > 1 && (
             <div
-              className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2"
-              style={{ backgroundColor: theme.colors.secondary + '80' }}
+              aria-hidden="true"
+              className="absolute left-1/2 top-2 bottom-2 w-px -translate-x-1/2"
+              style={{
+                // Fades out at both ends so the line reads as a thread between
+                // the events rather than a rule that stops mid-air.
+                backgroundImage: `linear-gradient(to bottom, transparent, ${theme.colors.secondary}80 12%, ${theme.colors.secondary}80 88%, transparent)`,
+              }}
             />
           )}
 
-          <div className="space-y-16">
+          <div className="space-y-8">
             {events.map((event, index) => {
               let formattedDate = event.date;
               try {
@@ -104,50 +114,94 @@ export function TimelineEventsSection({
                     style={{ backgroundColor: theme.colors.primary, borderColor: theme.colors.background }}
                   />
 
-                  <h3
-                    className="mb-2 text-2xl"
-                    style={{ color: theme.colors.primary, fontFamily: theme.fonts.script }}
-                  >
-                    {event.name}
-                  </h3>
-
-                  <p className="mb-1 text-sm" style={{ color: theme.colors.text, fontFamily: theme.fonts.body }}>
-                    {formattedDate}
-                  </p>
-
-                  <p
-                    className="mb-3 flex items-center gap-1 text-sm"
-                    style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.body }}
-                  >
-                    <Clock size={14} />
-                    {event.startTime}
-                    {event.endTime ? ` - ${event.endTime}` : ' - Selesai'}
-                  </p>
-
+                  {/*
+                   * Each event sits on its own card. Without one the connecting
+                   * line runs straight through the middle of the text, and the
+                   * two events read as one long column of loose lines rather
+                   * than as two separate occasions.
+                   */}
                   <div
-                    className="mb-1 flex items-center justify-center gap-1 text-sm font-medium"
-                    style={{ color: theme.colors.text, fontFamily: theme.fonts.body }}
+                    className="relative z-10 w-full rounded-2xl border px-6 py-7"
+                    style={{
+                      borderColor: theme.colors.secondary + '40',
+                      /*
+                       * Opaque, so the connecting line is hidden behind the
+                       * card and only shows in the gaps between events. A
+                       * translucent card lets the line run straight through
+                       * the middle of the text.
+                       */
+                      backgroundColor: theme.colors.background,
+                      backgroundImage: `linear-gradient(${theme.colors.secondary}0f, ${theme.colors.secondary}0f)`,
+                    }}
                   >
-                    <MapPin size={14} style={{ color: theme.colors.secondary }} />
-                    {event.venue}
+                    <h3
+                      className="mb-3 text-2xl sm:text-3xl"
+                      style={{ color: theme.colors.primary, fontFamily: theme.fonts.script }}
+                    >
+                      {event.name}
+                    </h3>
+
+                    <p className="mb-1 text-sm" style={{ color: theme.colors.text, fontFamily: theme.fonts.body }}>
+                      {formattedDate}
+                    </p>
+
+                    <p
+                      className="mb-3 flex items-center justify-center gap-1 text-sm"
+                      style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.body }}
+                    >
+                      <Clock size={14} />
+                      {event.startTime}
+                      {event.endTime ? ` - ${event.endTime}` : ' - Selesai'}
+                    </p>
+
+                    <div
+                      className="flex items-center justify-center gap-1 text-sm font-medium"
+                      style={{ color: theme.colors.text, fontFamily: theme.fonts.body }}
+                    >
+                      <MapPin size={14} style={{ color: theme.colors.secondary }} />
+                      {event.venue}
+                    </div>
+
+                    {/* An empty address would otherwise leave a blank gap. */}
+                    {event.address?.trim() && (
+                      <p
+                        className="mx-auto mt-1 max-w-xs text-xs leading-relaxed"
+                        style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.body }}
+                      >
+                        {event.address}
+                      </p>
+                    )}
+
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                      <a
+                        href={generateCalendarUrl(event)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border px-4 py-1.5 text-xs uppercase tracking-wider transition-opacity hover:opacity-75"
+                        style={{ borderColor: theme.colors.secondary, color: theme.colors.primary }}
+                      >
+                        + Tambah ke Kalender
+                      </a>
+
+                      {/*
+                       * A guest reading this on a phone wants directions, not a
+                       * street name to retype. Only offered when there is an
+                       * address to search for.
+                       */}
+                      {event.address?.trim() && (
+                        <a
+                          href={mapsUrl(event)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 rounded-full px-4 py-1.5 text-xs uppercase tracking-wider transition-opacity hover:opacity-75"
+                          style={{ backgroundColor: theme.colors.primary, color: theme.colors.background }}
+                        >
+                          <MapPin size={12} />
+                          Lihat Lokasi
+                        </a>
+                      )}
+                    </div>
                   </div>
-
-                  <p
-                    className="mb-4 max-w-xs text-xs"
-                    style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.body }}
-                  >
-                    {event.address}
-                  </p>
-
-                  <a
-                    href={generateCalendarUrl(event)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border px-4 py-1.5 text-xs uppercase tracking-wider transition-colors hover:text-white"
-                    style={{ borderColor: theme.colors.secondary, color: theme.colors.primary }}
-                  >
-                    + Tambah ke Kalender
-                  </a>
                 </motion.div>
               );
             })}

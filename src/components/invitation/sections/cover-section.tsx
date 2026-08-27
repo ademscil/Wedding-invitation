@@ -49,7 +49,7 @@ export function CoverSection({
     <AnimatePresence>
       {!isOpened && (
         <motion.section
-          className="fixed inset-0 z-50 flex min-h-screen flex-col items-center justify-center overflow-hidden px-6"
+          className="wi-fixed fixed inset-y-0 left-[var(--wi-gutter)] right-[var(--wi-gutter)] z-50 flex min-h-screen flex-col items-center justify-center overflow-hidden px-6"
           style={{ backgroundColor: theme.colors.background }}
           // The cover lifts and dissolves rather than simply fading, so opening
           // the invitation reads as a curtain rising.

@@ -119,3 +119,75 @@
     animation: none !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Desktop stage for public invitations.
+ *
+ * Every template is designed for a phone held in one hand. Rendered edge to
+ * edge on a laptop the same design becomes a thin ribbon of text stranded in
+ * a very large empty field — the layout is not wrong, there is simply far more
+ * canvas than content. So from `lg` up the invitation is confined to a
+ * phone-width column and the space beside it is painted with the template's
+ * own palette, the way a printed card sits on a table.
+ *
+ * Below `lg` every rule here resolves to full width, leaving the phone
+ * rendering byte-for-byte what it was.
+ * ------------------------------------------------------------------------ */
+:root {
+  --wi-frame: 100vw;
+  /* Half the gap between the frame edge and the viewport edge, for anchoring
+   * fixed overlays (music button, watermark) to the frame instead of the
+   * screen. Zero while the frame is full width. */
+  --wi-gutter: 0px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --wi-frame: 460px;
+    --wi-gutter: calc((100vw - 460px) / 2);
+  }
+}
+
+/* Anything that should line up with the invitation column. */
+.wi-canvas {
+  width: 100%;
+  max-width: var(--wi-frame);
+  margin-inline: auto;
+}
+
+.wi-stage {
+  min-height: 100vh;
+  background-color: var(--wi-stage-bg, transparent);
+}
+
+@media (min-width: 1024px) {
+  .wi-stage {
+    /* A soft pool of the template's accent behind the card, so the surround
+     * has depth instead of reading as a flat band of dead colour. */
+    background-image: radial-gradient(
+      ellipse 80% 60% at 50% 0%,
+      var(--wi-stage-glow, transparent),
+      transparent 70%
+    );
+    background-attachment: fixed;
+  }
+
+  .wi-stage > .wi-canvas {
+    box-shadow: 0 0 0 1px var(--wi-stage-edge, transparent), 0 24px 70px -20px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/*
+ * The drifting petals are a `fixed` layer, and a positioned element always
+ * paints above ordinary in-flow text no matter how low its z-index. Without
+ * this the ambience settles on top of the couple's names and the buttons.
+ *
+ * Lifting the invitation's own blocks one step puts them back above the
+ * drift. `.wi-fixed` marks the overlays that genuinely belong to the viewport
+ * — the cover, the music button, the progress bar and the petals themselves —
+ * so they keep their own positioning.
+ */
+.wi-canvas > div > *:not(.wi-fixed) {
+  position: relative;
+  z-index: 1;
+}

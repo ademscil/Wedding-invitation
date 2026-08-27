@@ -35,7 +35,7 @@ export function GallerySection({ invitation, theme }: GallerySectionProps) {
           theme={theme}
         />
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {images.map((image, index) => (
               <motion.button
                 key={image.id}

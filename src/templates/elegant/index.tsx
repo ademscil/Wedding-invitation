@@ -28,7 +28,7 @@ function parseSettings(settingsJson: string): InvitationSettings {
   }
 }
 
-const elegantTheme: TemplateTheme = {
+export const elegantTheme: TemplateTheme = {
   colors: {
     primary: '#6B4F3A',
     secondary: '#C9A86C',
@@ -44,6 +44,8 @@ const elegantTheme: TemplateTheme = {
   },
 };
 
+/* The bud is centred on x=100 to match the rules and dots either side of it;
+ * drawn from x=80 it sat visibly left of centre. */
 function OrnamentalDivider({ color }: { color: string }) {
   return (
     <div className="flex items-center justify-center py-4">
@@ -61,14 +63,14 @@ function OrnamentalDivider({ color }: { color: string }) {
           opacity="0.5"
         />
         <path
-          d="M80 12c0-6 5-10 10-10s10 4 10 10-5 10-10 10-10-4-10-10z"
+          d="M90 12c0-6 5-10 10-10s10 4 10 10-5 10-10 10-10-4-10-10z"
           stroke={color}
           strokeWidth="0.8"
           fill="none"
           opacity="0.6"
         />
         <path
-          d="M85 12c0-3.5 3-6 5-6s5 2.5 5 6-3 6-5 6-5-2.5-5-6z"
+          d="M95 12c0-3.5 3-6 5-6s5 2.5 5 6-3 6-5 6-5-2.5-5-6z"
           stroke={color}
           strokeWidth="0.5"
           fill="none"

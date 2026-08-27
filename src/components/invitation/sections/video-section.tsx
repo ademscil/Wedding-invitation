@@ -83,7 +83,7 @@ export function VideoSection({ invitation, theme }: VideoSectionProps) {
                 style={{ backgroundColor: theme.colors.text + '33' }}
               />
               <motion.span
-                className="relative flex h-16 w-16 items-center justify-center rounded-full shadow-lg sm:h-20 sm:w-20"
+                className="relative flex h-16 w-16 items-center justify-center rounded-full shadow-lg"
                 style={{ backgroundColor: theme.colors.background }}
                 whileHover={reduced ? undefined : { scale: 1.08 }}
                 whileTap={reduced ? undefined : { scale: 0.94 }}

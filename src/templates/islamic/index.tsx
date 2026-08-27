@@ -27,7 +27,7 @@ function parseSettings(settingsJson: string): InvitationSettings {
   }
 }
 
-const islamicTheme: TemplateTheme = {
+export const islamicTheme: TemplateTheme = {
   colors: {
     primary: '#1B4332',
     secondary: '#D4AF37',
@@ -48,8 +48,10 @@ function ArabicOrnament({ color }: { color: string }) {
     <div className="flex items-center justify-center py-6">
       <svg width="240" height="40" viewBox="0 0 240 40" fill="none">
         <path d="M0 20h80M160 20h80" stroke={color} strokeWidth="0.5" opacity="0.4" />
-        <path d="M90 20c0-5 4-9 10-9s10 4 10 9" stroke={color} strokeWidth="0.8" fill="none" opacity="0.6" />
-        <path d="M110 20c0 5 4 9 10 9s10-4 10-9" stroke={color} strokeWidth="0.8" fill="none" opacity="0.6" />
+        {/* The two arcs span 100-140 so the motif is centred on the 240-wide
+            box; drawn from x=90 it sat 10px left of the rules and dots. */}
+        <path d="M100 20c0-5 4-9 10-9s10 4 10 9" stroke={color} strokeWidth="0.8" fill="none" opacity="0.6" />
+        <path d="M120 20c0 5 4 9 10 9s10-4 10-9" stroke={color} strokeWidth="0.8" fill="none" opacity="0.6" />
         <circle cx="85" cy="20" r="2" fill={color} opacity="0.5" />
         <circle cx="155" cy="20" r="2" fill={color} opacity="0.5" />
         <circle cx="120" cy="8" r="3" fill={color} opacity="0.4" />

@@ -19,7 +19,7 @@ import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
 import { coupleNames } from '@/lib/invitation-data';
 
-const floralTheme: TemplateTheme = {
+export const floralTheme: TemplateTheme = {
   colors: {
     primary: '#B5598C',
     secondary: '#E8A0BF',
@@ -38,7 +38,6 @@ const floralTheme: TemplateTheme = {
 function FloralDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-3 py-8">
-      <Ambience theme={theme} particle="petal" />
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.secondary + '60' }} />
       <svg width="48" height="20" viewBox="0 0 48 20">
         <circle cx="24" cy="10" r="3" fill={theme.colors.primary} opacity="0.7" />
@@ -70,6 +69,7 @@ export function FloralTemplate({ invitation, guestName,
 
   return (
     <div style={{ backgroundColor: theme.colors.background, color: theme.colors.text, fontFamily: theme.fonts.body }}>
+      <Ambience theme={theme} particle="petal" />
       {!isPreview && (
         <CoverSection
           invitation={invitation}

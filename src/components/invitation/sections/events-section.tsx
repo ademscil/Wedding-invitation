@@ -36,7 +36,9 @@ export function EventsSection({ invitation, theme }: EventsSectionProps) {
           theme={theme}
         />
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        {/* One per row: side by side inside a phone-width column each card was
+            about 200px wide and the date wrapped over three lines. */}
+        <div className="grid grid-cols-1 gap-8">
           {events.map((event, index) => {
             const parsedDate = event.date ? new Date(event.date) : null;
             const formattedDate =

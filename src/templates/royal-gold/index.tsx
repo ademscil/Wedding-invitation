@@ -28,7 +28,7 @@ function parseSettings(s: string): InvitationSettings {
   }
 }
 
-const theme: TemplateTheme = {
+export const theme: TemplateTheme = {
   colors: {
     primary: '#B08A3E',
     secondary: '#D9BC7C',
@@ -47,7 +47,6 @@ const theme: TemplateTheme = {
 function GoldDivider() {
   return (
     <div className="flex items-center justify-center gap-3 py-6">
-      <Ambience theme={theme} particle="sparkle" />
       <div className="h-px w-16" style={{ backgroundColor: theme.colors.secondary + '80' }} />
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
         <rect
@@ -117,6 +116,7 @@ export function RoyalGoldTemplate({ invitation, guestName, personalLink, isPrevi
 
   return (
     <div style={{ backgroundColor: theme.colors.background, color: theme.colors.text, fontFamily: theme.fonts.body }}>
+      <Ambience theme={theme} particle="sparkle" />
       {!isPreview && (
         <CoverSection invitation={invitation} guestName={guestName} theme={theme} onOpen={() => setIsOpened(true)} particle="sparkle"
           />

@@ -28,7 +28,7 @@ function parseSettings(settingsJson: string): InvitationSettings {
   }
 }
 
-const modernTheme: TemplateTheme = {
+export const modernTheme: TemplateTheme = {
   colors: {
     primary: '#1A1A1A',
     secondary: '#C4787A',

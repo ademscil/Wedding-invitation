@@ -88,7 +88,7 @@ export function MusicPlayer({
   return (
     <motion.button
       onClick={togglePlay}
-      className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-lg"
+      className="wi-fixed fixed bottom-6 right-[calc(1.5rem+var(--wi-gutter))] z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-lg"
       style={{ backgroundColor: theme.colors.primary }}
       initial={reduced ? undefined : { opacity: 0, scale: 0 }}
       animate={{ opacity: 1, scale: 1 }}

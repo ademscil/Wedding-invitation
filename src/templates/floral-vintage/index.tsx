@@ -27,7 +27,7 @@ import {
   Butterfly,
 } from './florals';
 
-const theme: TemplateTheme = {
+export const theme: TemplateTheme = {
   colors: {
     primary: '#8B2332',
     secondary: '#C9A57E',
@@ -53,6 +53,24 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+/**
+ * The stored date as a person reads it. Falls back to the raw string when it
+ * is not a date we can parse, which is better than printing "Invalid Date".
+ */
+function longDate(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return format(parsed, 'EEEE, d MMMM yyyy', { locale: localeId });
+}
+
+/** A Maps search for the venue, for events with no map link of their own. */
+function mapsSearchUrl(event: InvitationEvent): string {
+  const query = encodeURIComponent(
+    [event.venue, event.address].filter(Boolean).join(', ')
+  );
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 /** Formats a date as the reference's "13 . 04 . 25". */
@@ -424,8 +442,15 @@ function EventTimeline({ events }: { events: InvitationEvent[] }) {
             />
 
             <div
+              /*
+               * Opaque. At 50% white the timeline stroke behind the card came
+               * through it and ran across the middle of the event name.
+               */
               className="mx-auto mt-8 max-w-xs rounded-lg px-5 py-6"
-              style={{ backgroundColor: '#FFFFFF80' }}
+              style={{
+                backgroundColor: '#FFFFFF',
+                boxShadow: `0 8px 28px -18px ${theme.colors.primary}66`,
+              }}
             >
               <h3
                 className="mb-3 text-3xl"
@@ -437,7 +462,7 @@ function EventTimeline({ events }: { events: InvitationEvent[] }) {
                 {event.name}
               </h3>
               <p className="text-sm" style={{ color: theme.colors.text }}>
-                {event.date}
+                {longDate(event.date)}
               </p>
               <p className="text-sm" style={{ color: theme.colors.text }}>
                 {event.startTime}
@@ -457,9 +482,9 @@ function EventTimeline({ events }: { events: InvitationEvent[] }) {
                   {event.address}
                 </p>
               )}
-              {event.mapUrl && (
+              {(event.mapUrl || event.address) && (
                 <a
-                  href={event.mapUrl}
+                  href={event.mapUrl || mapsSearchUrl(event)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-4 inline-block rounded-full px-5 py-2 text-xs tracking-wide transition-opacity hover:opacity-85"

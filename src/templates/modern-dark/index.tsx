@@ -19,7 +19,7 @@ import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
 import { coupleNames } from '@/lib/invitation-data';
 
-const modernDarkTheme: TemplateTheme = {
+export const modernDarkTheme: TemplateTheme = {
   colors: {
     primary: '#E8C97A',
     secondary: '#C4A35A',
@@ -38,7 +38,6 @@ const modernDarkTheme: TemplateTheme = {
 function GoldLineDivider({ theme }: { theme: TemplateTheme }) {
   return (
     <div className="flex items-center justify-center gap-3 py-8">
-      <Ambience theme={theme} particle="sparkle" />
       <div className="h-px flex-1" style={{ backgroundColor: theme.colors.primary + '30' }} />
       <svg width="32" height="12" viewBox="0 0 32 12">
         <circle cx="4" cy="6" r="2" fill={theme.colors.primary} />
@@ -66,6 +65,7 @@ export function ModernDarkTemplate({ invitation, guestName,
 
   return (
     <div style={{ backgroundColor: theme.colors.background, color: theme.colors.text, fontFamily: theme.fonts.body }}>
+      <Ambience theme={theme} particle="sparkle" />
       {!isPreview && (
         <CoverSection
           invitation={invitation}
