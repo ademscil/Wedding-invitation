@@ -16,9 +16,9 @@ import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
+import { InvitationClosingSection } from '@/components/invitation/sections/invitation-closing-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
-import { coupleNames } from '@/lib/invitation-data';
 
 function parseSettings(s: string): InvitationSettings {
   try {
@@ -174,14 +174,9 @@ export function RoyalGoldTemplate({ invitation, guestName, personalLink, existin
             <WishesSection invitation={invitation} theme={theme} />
             <WeddingInfoSection invitation={invitation} theme={theme} />
             <ShareSection invitation={invitation} theme={theme} />
+            <InvitationClosingSection invitation={invitation} theme={theme} />
           </>
         )}
-
-        <div className="py-10 text-center" style={{ backgroundColor: theme.colors.accent }}>
-          <p className="text-2xl" style={{ color: theme.colors.secondary, fontFamily: theme.fonts.script }}>
-            {coupleNames(invitation)}
-          </p>
-        </div>
       </div>
     </div>
   );

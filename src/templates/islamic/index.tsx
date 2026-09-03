@@ -14,10 +14,10 @@ import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
+import { InvitationClosingSection } from '@/components/invitation/sections/invitation-closing-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
 import { CoverSection } from '@/components/invitation/sections/cover-section';
-import { coupleNames } from '@/lib/invitation-data';
 
 function parseSettings(settingsJson: string): InvitationSettings {
   try {
@@ -185,15 +185,11 @@ export function IslamicTemplate({ invitation, guestName,
 
         <WeddingInfoSection invitation={invitation} theme={theme} />
         <ShareSection invitation={invitation} theme={theme} />
-
-        <footer className="px-6 pb-24 pt-12 text-center" style={{ backgroundColor: theme.colors.primary }}>
-          <p className="text-lg" style={{ color: theme.colors.secondary + 'CC', fontFamily: theme.fonts.body }}>
-            Wassalamualaikum Warahmatullahi Wabarakatuh
-          </p>
-          <p className="mt-4 text-3xl" style={{ color: theme.colors.secondary, fontFamily: theme.fonts.script }}>
-            {coupleNames(invitation)}
-          </p>
-        </footer>
+        <InvitationClosingSection
+          invitation={invitation}
+          theme={theme}
+          greeting="Wassalamu'alaikum Warahmatullahi Wabarakatuh"
+        />
       </div>
     </div>
   );

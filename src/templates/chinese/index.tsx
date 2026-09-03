@@ -14,9 +14,9 @@ import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
+import { InvitationClosingSection } from '@/components/invitation/sections/invitation-closing-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
-import { coupleNames } from '@/lib/invitation-data';
 
 export const chineseTheme: TemplateTheme = {
   colors: {
@@ -107,14 +107,13 @@ export function ChineseTemplate({ invitation, guestName,
             <WishesSection invitation={invitation} theme={theme} />
             <WeddingInfoSection invitation={invitation} theme={theme} />
             <ShareSection invitation={invitation} theme={theme} />
+            <InvitationClosingSection
+              invitation={invitation}
+              theme={theme}
+              greeting="囍 Selamanya Bersama 囍"
+            />
           </>
         )}
-
-        <div className="py-8 text-center" style={{ backgroundColor: theme.colors.primary, color: '#FFD700' }}>
-          <p className="text-2xl font-bold">囍</p>
-          <p className="mt-2 text-sm">{coupleNames(invitation)}</p>
-          <p className="mt-1 text-xs opacity-70">Selamanya bersama</p>
-        </div>
       </div>
     </div>
   );

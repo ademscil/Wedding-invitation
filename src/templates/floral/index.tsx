@@ -15,9 +15,9 @@ import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
+import { InvitationClosingSection } from '@/components/invitation/sections/invitation-closing-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
-import { coupleNames } from '@/lib/invitation-data';
 
 export const floralTheme: TemplateTheme = {
   colors: {
@@ -120,18 +120,9 @@ export function FloralTemplate({ invitation, guestName,
             <WishesSection invitation={invitation} theme={theme} />
             <WeddingInfoSection invitation={invitation} theme={theme} />
             <ShareSection invitation={invitation} theme={theme} />
+            <InvitationClosingSection invitation={invitation} theme={theme} />
           </>
         )}
-
-        <div
-          className="py-10 text-center"
-          style={{ background: `linear-gradient(135deg, ${theme.colors.secondary}40, ${theme.colors.primary}30)` }}
-        >
-          <p style={{ color: theme.colors.primary, fontFamily: theme.fonts.script, fontSize: '1.8rem' }}>
-            {coupleNames(invitation)}
-          </p>
-          <p className="mt-2" style={{ color: theme.colors.textMuted, fontSize: '0.75rem' }}>✿ ✿ ✿</p>
-        </div>
       </div>
     </div>
   );

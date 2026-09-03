@@ -14,9 +14,9 @@ import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
+import { InvitationClosingSection } from '@/components/invitation/sections/invitation-closing-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
-import { coupleNames } from '@/lib/invitation-data';
 
 export const javaneseTheme: TemplateTheme = {
   colors: {
@@ -115,18 +115,13 @@ export function JavaneseTemplate({ invitation, guestName,
             <WishesSection invitation={invitation} theme={theme} />
             <WeddingInfoSection invitation={invitation} theme={theme} />
             <ShareSection invitation={invitation} theme={theme} />
+            <InvitationClosingSection
+              invitation={invitation}
+              theme={theme}
+              greeting="Wassalamu'alaikum Warahmatullahi Wabarakatuh"
+            />
           </>
         )}
-
-        <div className="h-3" style={{
-          background: `repeating-linear-gradient(90deg, ${theme.colors.secondary} 0px, ${theme.colors.secondary} 4px, transparent 4px, transparent 12px)`,
-        }} />
-        <div className="py-8 text-center" style={{ backgroundColor: theme.colors.primary, color: '#F5DEB3' }}>
-          <p className="text-sm">Wassalamu&apos;alaikum Warahmatullahi Wabarakatuh</p>
-          <p className="mt-3 text-xs opacity-70">
-            {coupleNames(invitation)}
-          </p>
-        </div>
       </div>
     </div>
   );

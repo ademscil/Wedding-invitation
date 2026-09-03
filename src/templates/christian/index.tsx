@@ -14,9 +14,9 @@ import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
+import { InvitationClosingSection } from '@/components/invitation/sections/invitation-closing-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
-import { coupleNames } from '@/lib/invitation-data';
 
 export const christianTheme: TemplateTheme = {
   colors: {
@@ -110,18 +110,13 @@ export function ChristianTemplate({ invitation, guestName,
             <WishesSection invitation={invitation} theme={theme} />
             <WeddingInfoSection invitation={invitation} theme={theme} />
             <ShareSection invitation={invitation} theme={theme} />
+            <InvitationClosingSection
+              invitation={invitation}
+              theme={theme}
+              greeting="“Dua adalah lebih baik dari pada satu.” — Pengkhotbah 4:9"
+            />
           </>
         )}
-
-        <div className="py-12 text-center" style={{ backgroundColor: theme.colors.primary, color: '#fff' }}>
-          <p className="text-sm italic" style={{ fontFamily: theme.fonts.script, fontSize: '1.2rem' }}>
-            &ldquo;Dua adalah lebih baik dari pada satu.&rdquo;
-          </p>
-          <p className="mt-1 text-xs opacity-70">— Pengkhotbah 4:9</p>
-          <p className="mt-4 text-xs opacity-60">
-            {coupleNames(invitation)}
-          </p>
-        </div>
       </div>
     </div>
   );

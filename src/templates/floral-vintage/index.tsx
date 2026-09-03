@@ -16,6 +16,7 @@ import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
+import { InvitationClosingSection } from '@/components/invitation/sections/invitation-closing-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
 import { coupleNames, coupleInitials } from '@/lib/invitation-data';
@@ -709,28 +710,7 @@ export function FloralVintageTemplate({
           quote={invitation.quote}
         />
 
-        <div
-          className="py-8 text-center"
-          style={{ backgroundColor: theme.colors.primary }}
-        >
-          <p
-            className="text-2xl"
-            style={{
-              color: theme.colors.secondary,
-              fontFamily: theme.fonts.script,
-            }}
-          >
-            {coupleNames(invitation)}
-          </p>
-          {weddingDate && (
-            <p
-              className="mt-1 text-xs tracking-[0.25em]"
-              style={{ color: '#FFF8F0AA' }}
-            >
-              {format(weddingDate, 'd MMMM yyyy', { locale: localeId })}
-            </p>
-          )}
-        </div>
+        <InvitationClosingSection invitation={invitation} theme={theme} />
       </div>
     </div>
   );

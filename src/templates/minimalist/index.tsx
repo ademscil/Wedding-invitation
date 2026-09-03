@@ -16,9 +16,9 @@ import { GiftSection } from '@/components/invitation/sections/gift-section';
 import { WishesSection } from '@/components/invitation/sections/wishes-section';
 import { ShareSection } from '@/components/invitation/sections/share-section';
 import { WeddingInfoSection } from '@/components/invitation/sections/wedding-info-section';
+import { InvitationClosingSection } from '@/components/invitation/sections/invitation-closing-section';
 import { MusicPlayer } from '@/components/invitation/sections/music-player';
 import { Ambience } from '@/components/invitation/motion';
-import { coupleNames } from '@/lib/invitation-data';
 
 function parseSettings(settingsJson: string): InvitationSettings {
   try {
@@ -202,26 +202,7 @@ export function MinimalistTemplate({
 
         <WeddingInfoSection invitation={invitation} theme={theme} />
         <ShareSection invitation={invitation} theme={theme} />
-
-        {/* Footer */}
-        <footer className="px-6 pb-24 pt-16 text-center">
-          <ThinLineDivider color={theme.colors.secondary} />
-          <p
-            className="text-xs uppercase tracking-[0.25em]"
-            style={{
-              color: theme.colors.textMuted,
-              fontFamily: theme.fonts.body,
-            }}
-          >
-            {coupleNames(invitation)}
-          </p>
-          <p
-            className="mt-8 text-xs"
-            style={{ color: theme.colors.textMuted + '60' }}
-          >
-            Powered by WedInvite
-          </p>
-        </footer>
+        <InvitationClosingSection invitation={invitation} theme={theme} />
       </div>
     </div>
   );
