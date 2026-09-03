@@ -8,6 +8,7 @@ import { InvitationWatermark } from './watermark';
 type InvitationRendererProps = TemplateProps & {
   /** Set by the server from the owner's plan; not user-controllable. */
   showWatermark?: boolean;
+  isDraftPreview?: boolean;
 };
 
 /** Hex colour plus an alpha suffix, guarding against a malformed theme value. */
@@ -19,8 +20,10 @@ export function InvitationRenderer({
   invitation,
   guestName,
   personalLink,
+  existingRsvp,
   isPreview,
   showWatermark,
+  isDraftPreview,
 }: InvitationRendererProps) {
   const componentName = invitation.template?.componentName || 'elegant';
   const TemplateComponent = getTemplate(componentName);
@@ -31,6 +34,7 @@ export function InvitationRenderer({
       invitation={invitation}
       guestName={guestName}
       personalLink={personalLink}
+      existingRsvp={existingRsvp}
       isPreview={isPreview}
     />
   );
@@ -49,8 +53,19 @@ export function InvitationRenderer({
   } as CSSProperties;
 
   return (
-    <div className="wi-stage" style={stageStyle}>
-      <div className="wi-canvas">{template}</div>
+    <div className="wi-stage relative" style={stageStyle}>
+      {isDraftPreview && (
+        <div className="fixed top-0 inset-x-0 z-[100] flex items-center justify-between bg-amber-600/95 px-4 py-2 text-xs font-medium text-white shadow-md backdrop-blur-sm">
+          <span>Mode Pratinjau (Draft) — Undangan ini belum dipublikasikan</span>
+          <a
+            href={`/dashboard/invitations/${invitation.id}`}
+            className="rounded bg-white/20 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/30"
+          >
+            Kembali ke Editor
+          </a>
+        </div>
+      )}
+      <div className={isDraftPreview ? 'wi-canvas pt-8' : 'wi-canvas'}>{template}</div>
       {showWatermark && <InvitationWatermark />}
     </div>
   );

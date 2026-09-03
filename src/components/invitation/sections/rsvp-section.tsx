@@ -14,6 +14,11 @@ interface RsvpSectionProps {
   theme: TemplateTheme;
   guestName?: string;
   personalLink?: string;
+  existingRsvp?: {
+    status: string;
+    guestCount?: number | null;
+    dietaryNotes?: string | null;
+  };
 }
 
 type RsvpStatus = 'ATTENDING' | 'NOT_ATTENDING' | 'MAYBE';
@@ -23,14 +28,24 @@ export function RsvpSection({
   theme,
   guestName,
   personalLink,
+  existingRsvp,
 }: RsvpSectionProps) {
   // Owners can hide this section from the invitation settings.
   const visible = isSectionVisible(parseSettings(invitation.settings), 'showRsvp');
 
+  const hasExistingRsvp = Boolean(
+    existingRsvp &&
+      existingRsvp.status &&
+      existingRsvp.status !== 'PENDING'
+  );
+  const [isEditingExisting, setIsEditingExisting] = useState(false);
+
   const [name, setName] = useState(guestName || '');
-  const [status, setStatus] = useState<RsvpStatus | ''>('');
-  const [guestCount, setGuestCount] = useState(1);
-  const [dietaryNotes, setDietaryNotes] = useState('');
+  const [status, setStatus] = useState<RsvpStatus | ''>(
+    (existingRsvp?.status as RsvpStatus) || ''
+  );
+  const [guestCount, setGuestCount] = useState(existingRsvp?.guestCount || 1);
+  const [dietaryNotes, setDietaryNotes] = useState(existingRsvp?.dietaryNotes || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -137,6 +152,75 @@ export function RsvpSection({
               >
                 Konfirmasi kehadiran Anda telah kami terima.
               </p>
+            </motion.div>
+          ) : hasExistingRsvp && !isEditingExisting ? (
+            <motion.div
+              className="relative overflow-hidden rounded-2xl border p-8 text-center"
+              style={{
+                borderColor: theme.colors.secondary + '40',
+                backgroundColor: theme.colors.secondary + '0a',
+              }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+            >
+              <div
+                className="relative mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
+                style={{ backgroundColor: theme.colors.primary + '18' }}
+              >
+                <Check size={28} style={{ color: theme.colors.primary }} />
+              </div>
+              <h3
+                className="mb-1 text-xl"
+                style={{
+                  color: theme.colors.text,
+                  fontFamily: theme.fonts.heading,
+                }}
+              >
+                Terima Kasih, {name}!
+              </h3>
+              <p
+                className="text-sm"
+                style={{
+                  color: theme.colors.textMuted,
+                  fontFamily: theme.fonts.body,
+                }}
+              >
+                Konfirmasi kehadiran Anda telah tercatat:{' '}
+                <strong style={{ color: theme.colors.primary }}>
+                  {status === 'ATTENDING'
+                    ? `Hadir (${guestCount} orang)`
+                    : status === 'NOT_ATTENDING'
+                    ? 'Tidak Dapat Hadir'
+                    : 'Mungkin Hadir'}
+                </strong>
+              </p>
+              {dietaryNotes && (
+                <p
+                  className="mt-2 text-xs italic"
+                  style={{
+                    color: theme.colors.textMuted,
+                    fontFamily: theme.fonts.body,
+                  }}
+                >
+                  &ldquo;{dietaryNotes}&rdquo;
+                </p>
+              )}
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingExisting(true)}
+                  className="inline-flex items-center rounded-full border px-5 py-2 text-xs font-semibold uppercase tracking-wider transition-all hover:opacity-80"
+                  style={{
+                    borderColor: theme.colors.secondary + '80',
+                    color: theme.colors.text,
+                    backgroundColor: 'transparent',
+                    fontFamily: theme.fonts.body,
+                  }}
+                >
+                  Ubah Konfirmasi
+                </button>
+              </div>
             </motion.div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">

@@ -63,7 +63,7 @@ function LeafDivider({ color }: { color: string }) {
 }
 
 export function RusticTemplate({ invitation, guestName,
-  personalLink, isPreview }: TemplateProps) {
+  personalLink, existingRsvp, isPreview }: TemplateProps) {
   const settings = parseSettings(invitation.settings);
   const [isOpened, setIsOpened] = useState(isPreview || false);
 
@@ -157,6 +157,7 @@ export function RusticTemplate({ invitation, guestName,
               theme={theme}
               guestName={guestName}
               personalLink={personalLink}
+              existingRsvp={existingRsvp}
             />
             <LeafDivider color={theme.colors.accent} />
           </>

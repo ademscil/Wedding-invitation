@@ -69,6 +69,7 @@ export function ModernTemplate({
   invitation,
   guestName,
   personalLink,
+  existingRsvp,
   isPreview,
 }: TemplateProps) {
   const settings = parseSettings(invitation.settings);
@@ -195,6 +196,7 @@ export function ModernTemplate({
                 theme={theme}
                 guestName={guestName}
                 personalLink={personalLink}
+                existingRsvp={existingRsvp}
               />
             </section>
             <GeometricDivider color={theme.colors.secondary} />

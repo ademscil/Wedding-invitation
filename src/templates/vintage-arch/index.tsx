@@ -127,7 +127,7 @@ function ArchDivider() {
   );
 }
 
-export function VintageArchTemplate({ invitation, guestName, personalLink, isPreview }: TemplateProps) {
+export function VintageArchTemplate({ invitation, guestName, personalLink, existingRsvp, isPreview }: TemplateProps) {
   const settings = parseSettings((invitation.settings as string) || '{}');
   const [isOpened, setIsOpened] = useState(isPreview || false);
 
@@ -186,6 +186,7 @@ export function VintageArchTemplate({ invitation, guestName, personalLink, isPre
               theme={theme}
               guestName={guestName}
               personalLink={personalLink}
+              existingRsvp={existingRsvp}
             />
             <GiftSection invitation={invitation} theme={theme} />
             <WishesSection invitation={invitation} theme={theme} />

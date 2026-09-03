@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Check,
   Heart,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
@@ -407,6 +408,16 @@ export default function InvitationDetailPage() {
           </Badge>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <a
+              href={`/${invitation.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-1.5 h-4 w-4" />
+              Buka Undangan
+            </a>
+          </Button>
           <Button variant="outline" size="sm" onClick={handleCopyLink}>
             <Copy className="mr-1.5 h-4 w-4" />
             Salin Link

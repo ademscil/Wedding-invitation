@@ -17,6 +17,11 @@ export const checkinRouter = router({
 
       const guest = await ctx.prisma.guest.findUnique({
         where: { personalLink: input.personalLink },
+        include: {
+          table: {
+            select: { name: true },
+          },
+        },
       });
 
       if (!guest || guest.invitationId !== input.invitationId) {
@@ -24,15 +29,34 @@ export const checkinRouter = router({
       }
 
       if (guest.checkedIn) {
-        return { success: false, message: 'Tamu sudah check-in sebelumnya', guest };
+        return {
+          success: false,
+          message: 'Tamu sudah check-in sebelumnya',
+          guest: {
+            ...guest,
+            tableName: guest.table?.name ?? null,
+          },
+        };
       }
 
       const updated = await ctx.prisma.guest.update({
         where: { id: guest.id },
         data: { checkedIn: true, checkedInAt: new Date() },
+        include: {
+          table: {
+            select: { name: true },
+          },
+        },
       });
 
-      return { success: true, message: `Selamat datang, ${guest.name}!`, guest: updated };
+      return {
+        success: true,
+        message: `Selamat datang, ${guest.name}!`,
+        guest: {
+          ...updated,
+          tableName: updated.table?.name ?? null,
+        },
+      };
     }),
 
   getCheckinStats: protectedProcedure

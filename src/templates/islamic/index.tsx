@@ -62,7 +62,7 @@ function ArabicOrnament({ color }: { color: string }) {
 }
 
 export function IslamicTemplate({ invitation, guestName,
-  personalLink, isPreview }: TemplateProps) {
+  personalLink, existingRsvp, isPreview }: TemplateProps) {
   const settings = parseSettings(invitation.settings);
   const [isOpened, setIsOpened] = useState(isPreview || false);
 
@@ -164,6 +164,7 @@ export function IslamicTemplate({ invitation, guestName,
               theme={theme}
               guestName={guestName}
               personalLink={personalLink}
+              existingRsvp={existingRsvp}
             />
             <ArabicOrnament color={theme.colors.secondary} />
           </>

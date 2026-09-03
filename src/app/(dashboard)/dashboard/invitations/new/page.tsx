@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Heart, Loader2 } from 'lucide-react';
+import { Check, Heart, Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { generateSlug } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,11 @@ export default function NewInvitationPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     null
   );
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [targetedTemplate, setTargetedTemplate] = useState<{ id: string; name: string } | null>(null);
+
+  const { data: subscription } = trpc.payment.getSubscription.useQuery();
+  const isFree = !subscription || subscription.tier === 'FREE';
 
   const { data: templates, isLoading: templatesLoading } =
     trpc.template.list.useQuery();
@@ -79,13 +85,18 @@ export default function NewInvitationPage() {
                     selectedTemplateId === template.id &&
                       'ring-2 ring-primary ring-offset-2'
                   )}
-                  onClick={() =>
+                  onClick={() => {
+                    if (template.isPremium && isFree) {
+                      setTargetedTemplate(template);
+                      setUpgradeDialogOpen(true);
+                      return;
+                    }
                     setSelectedTemplateId(
                       selectedTemplateId === template.id
                         ? null
                         : template.id
-                    )
-                  }
+                    );
+                  }}
                 >
                   <div className="relative h-32 bg-gradient-to-br from-primary/10 to-primary/5">
                     {template.thumbnail ? (
@@ -107,7 +118,11 @@ export default function NewInvitationPage() {
                     )}
                     {template.isPremium && (
                       <div className="absolute left-2 top-2">
-                        <Badge variant="accent" className="text-xs">
+                        <Badge
+                          variant={isFree ? 'secondary' : 'accent'}
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          {isFree && <Lock className="h-3 w-3 text-amber-600" />}
                           Premium
                         </Badge>
                       </div>
@@ -182,6 +197,17 @@ export default function NewInvitationPage() {
           </Button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={upgradeDialogOpen}
+        onOpenChange={setUpgradeDialogOpen}
+        title="Template Khusus Paket Berbayar"
+        description={`Template "${targetedTemplate?.name}" hanya tersedia untuk paket Starter ke atas. Ingin upgrade paket sekarang untuk menikmati template ini beserta fitur eksklusif lainnya?`}
+        confirmLabel="Lihat Pilihan Paket"
+        cancelLabel="Pilih Template Lain"
+        variant="default"
+        onConfirm={() => router.push('/dashboard/upgrade')}
+      />
     </div>
   );
 }

@@ -15,8 +15,38 @@ import { useFeature, FeatureLocked } from '@/components/dashboard/feature-gate';
 type CheckinResult = {
   success: boolean;
   message: string;
-  guest: { name: string; rsvpGuestCount: number | null } | null;
+  guest: {
+    name: string;
+    rsvpGuestCount: number | null;
+    tableName?: string | null;
+  } | null;
 } | null;
+
+const playFeedback = (success: boolean) => {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    navigator.vibrate(success ? [80, 50, 80] : [200]);
+  }
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (AudioContextClass) {
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = success ? 'sine' : 'sawtooth';
+      osc.frequency.setValueAtTime(success ? 880 : 300, ctx.currentTime);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (success ? 0.18 : 0.3));
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + (success ? 0.18 : 0.3));
+    }
+  } catch {
+    // AudioContext blocked or unsupported
+  }
+};
 
 export default function CheckinPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,21 +62,23 @@ export default function CheckinPage() {
   const verify = trpc.checkin.verifyGuest.useMutation({
     onSuccess: (data) => {
       setResult(data);
+      playFeedback(data.success);
       refetchStats();
-      setTimeout(() => setResult(null), 4000);
+      setTimeout(() => setResult(null), 5000);
     },
     onError: (error) => {
       setResult({ success: false, message: error.message || 'Kode tidak valid', guest: null });
+      playFeedback(false);
       toast.error(error.message || 'Gagal memverifikasi tamu');
-      setTimeout(() => setResult(null), 4000);
+      setTimeout(() => setResult(null), 5000);
     },
   });
 
   const handleScan = (code: string) => {
     if (!code || verify.isPending) return;
-    // Extract personal link from URL or use raw code
-    const match = code.match(/[?&]to=([^&]+)/);
-    const personalLink = match ? match[1] : code;
+    // Extract personal link from URL path /to/{link}, query ?to={link}, or raw personal link
+    const match = code.match(/\/to\/([^/?#]+)/) || code.match(/[?&]to=([^&]+)/);
+    const personalLink = match ? match[1] : code.trim();
     verify.mutate({ personalLink, invitationId: id });
   };
 
@@ -176,14 +208,29 @@ export default function CheckinPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {result && (
-              <div className={`flex items-center gap-3 rounded-lg p-4 ${
-                result.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-              }`}>
-                {result.success ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
-                <div>
-                  <p className="font-semibold">{result.message}</p>
-                  {result.success && result.guest && (
-                    <p className="text-sm">{result.guest.rsvpGuestCount || 1} orang</p>
+              <div
+                className={`flex items-start gap-3 rounded-xl p-4 shadow-sm transition-all ${
+                  result.success
+                    ? 'border border-green-200 bg-green-50 text-green-900'
+                    : 'border border-red-200 bg-red-50 text-red-900'
+                }`}
+              >
+                <div className={`mt-0.5 rounded-full p-1.5 ${result.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {result.success ? <Check className="h-5 w-5 stroke-[2.5]" /> : <X className="h-5 w-5 stroke-[2.5]" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-bold">{result.message}</p>
+                  {result.guest && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center rounded-md bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-gray-800 shadow-sm">
+                        👥 {result.guest.rsvpGuestCount || 1} orang
+                      </span>
+                      {result.guest.tableName && (
+                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800 shadow-sm">
+                          🪑 Meja: {result.guest.tableName}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

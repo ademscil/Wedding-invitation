@@ -59,6 +59,7 @@ export function MinimalistTemplate({
   invitation,
   guestName,
   personalLink,
+  existingRsvp,
   isPreview,
 }: TemplateProps) {
   const settings = parseSettings(invitation.settings);
@@ -176,6 +177,7 @@ export function MinimalistTemplate({
               theme={theme}
               guestName={guestName}
               personalLink={personalLink}
+              existingRsvp={existingRsvp}
             />
             <ThinLineDivider color={theme.colors.secondary} />
           </>

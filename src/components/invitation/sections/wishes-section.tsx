@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, Heart } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { Invitation, Wish } from '@prisma/client';
@@ -29,6 +29,7 @@ export function WishesSection({
   const [name, setName] = useState(guestName || '');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const [error, setError] = useState('');
 
   const fetchWishes = useCallback(async () => {
@@ -58,6 +59,8 @@ export function WishesSection({
       });
 
       setMessage('');
+      setSubmittedSuccess(true);
+      setTimeout(() => setSubmittedSuccess(false), 5000);
       await fetchWishes();
     } catch (err) {
       setError(
@@ -131,6 +134,23 @@ export function WishesSection({
               }}
             />
           </div>
+
+          {submittedSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-center gap-2 rounded-xl border p-3.5 text-center text-xs font-semibold sm:text-sm"
+              style={{
+                borderColor: theme.colors.primary + '30',
+                backgroundColor: theme.colors.primary + '12',
+                color: theme.colors.primary,
+                fontFamily: theme.fonts.body,
+              }}
+            >
+              <Heart className="h-4 w-4 fill-current text-rose-500 shrink-0" />
+              <span>Doa dan restu Anda telah terkirim. Terima kasih banyak!</span>
+            </motion.div>
+          )}
 
           {error && (
             <p

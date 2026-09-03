@@ -50,7 +50,7 @@ function GoldLineDivider({ theme }: { theme: TemplateTheme }) {
 }
 
 export function ModernDarkTemplate({ invitation, guestName,
-  personalLink, isPreview }: TemplateProps) {
+  personalLink, existingRsvp, isPreview }: TemplateProps) {
   const settings = parseSettings(invitation.settings);
 
   const theme: TemplateTheme = {
@@ -97,11 +97,12 @@ export function ModernDarkTemplate({ invitation, guestName,
             <VideoSection invitation={invitation} theme={theme} />
 
             <RsvpSection
-            invitation={invitation}
-            theme={theme}
-            guestName={guestName}
-            personalLink={personalLink}
-          />
+              invitation={invitation}
+              theme={theme}
+              guestName={guestName}
+              personalLink={personalLink}
+              existingRsvp={existingRsvp}
+            />
             <GiftSection invitation={invitation} theme={theme} />
             <WishesSection invitation={invitation} theme={theme} />
             <WeddingInfoSection invitation={invitation} theme={theme} />

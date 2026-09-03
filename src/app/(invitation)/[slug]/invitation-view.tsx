@@ -6,6 +6,8 @@ import type { Metadata } from 'next';
 import { prisma } from '@/lib/db';
 import { InvitationRenderer } from '@/components/invitation/invitation-renderer';
 import { formatDate } from '@/lib/utils';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/constants';
 import { parseSettings } from '@/lib/invitation-data';
 import { coupleNames } from '@/lib/invitation-data';
@@ -97,8 +99,10 @@ export async function buildInvitationMetadata(
   lookup: InvitationLookup
 ): Promise<Metadata> {
   const invitation = await getInvitationBy(lookup);
+  const session = await getServerSession(authOptions).catch(() => null);
+  const isOwner = Boolean(session?.user?.id && invitation?.userId === session.user.id);
 
-  if (!isLive(invitation)) {
+  if (!invitation || (!isLive(invitation) && !isOwner)) {
     return { title: 'Undangan Tidak Ditemukan', robots: { index: false, follow: false } };
   }
 
@@ -153,10 +157,14 @@ interface InvitationViewProps {
 
 export async function InvitationView({ lookup, personalLink }: InvitationViewProps) {
   const invitation = await getInvitationBy(lookup);
+  const session = await getServerSession(authOptions).catch(() => null);
+  const isOwner = Boolean(session?.user?.id && invitation?.userId === session.user.id);
 
-  if (!isLive(invitation)) notFound();
+  if (!invitation) notFound();
+  if (!isLive(invitation) && !isOwner) notFound();
 
   const guest = personalLink ? await resolveGuest(invitation.id, personalLink) : null;
+  const isDraftPreview = isOwner && invitation.status !== 'PUBLISHED';
 
   // Record the visit asynchronously without blocking page render TTFB
   const requestHeaders = headers();
@@ -182,6 +190,16 @@ export async function InvitationView({ lookup, personalLink }: InvitationViewPro
       invitation={invitation}
       guestName={guest?.name}
       personalLink={guest?.personalLink}
+      existingRsvp={
+        guest && guest.rsvpStatus !== 'PENDING'
+          ? {
+              status: guest.rsvpStatus,
+              guestCount: guest.rsvpGuestCount,
+              dietaryNotes: guest.dietaryNotes,
+            }
+          : undefined
+      }
+      isDraftPreview={isDraftPreview}
       showWatermark={hasWatermark(invitation.user.subscriptionTier)}
     />
   );

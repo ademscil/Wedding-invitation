@@ -613,6 +613,7 @@ export function FloralVintageTemplate({
   invitation,
   guestName,
   personalLink,
+  existingRsvp,
   isPreview,
 }: TemplateProps) {
   const settings = parseJson<InvitationSettings>(
@@ -693,6 +694,7 @@ export function FloralVintageTemplate({
               theme={theme}
               guestName={guestName}
               personalLink={personalLink}
+              existingRsvp={existingRsvp}
             />
             <GiftSection invitation={invitation} theme={theme} />
             <WishesSection invitation={invitation} theme={theme} />

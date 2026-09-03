@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Plus,
   Users,
@@ -18,6 +18,7 @@ import {
   QrCode,
   Copy,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc/client';
@@ -44,12 +45,16 @@ import { useFeature } from '@/components/dashboard/feature-gate';
 
 export default function GuestsPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
 
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showQrModal, setShowQrModal] = useState<{ name: string; qr: string } | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeFeatureTitle, setUpgradeFeatureTitle] = useState('');
+  const [upgradeFeatureDescription, setUpgradeFeatureDescription] = useState('');
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestPhone, setNewGuestPhone] = useState('');
   const [newGuestGroup, setNewGuestGroup] = useState('');
@@ -330,7 +335,7 @@ export default function GuestsPage() {
             <Upload className="mr-1.5 h-4 w-4" />
             Import
           </Button>
-          {canExport && (
+          {canExport ? (
             <>
               <Button variant="outline" size="sm" onClick={handleExportCsv}>
                 <Download className="mr-1.5 h-4 w-4" />
@@ -341,12 +346,46 @@ export default function GuestsPage() {
                 Excel
               </Button>
             </>
-          )}
-          {canBroadcast && selectedGuestIds.size > 0 && (
-            <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={handleStartBroadcast}>
-              <MessageCircle className="mr-1.5 h-4 w-4" />
-              Broadcast WhatsApp ({selectedGuestIds.size})
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={() => {
+                setUpgradeFeatureTitle('Ekspor Tamu ke Excel & CSV');
+                setUpgradeFeatureDescription(
+                  'Unduh data seluruh tamu undangan Anda beserta nomor telepon dan status RSVP ke format spreadsheet Excel atau CSV.'
+                );
+                setShowUpgradeModal(true);
+              }}
+            >
+              <Lock className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
+              Export
             </Button>
+          )}
+          {selectedGuestIds.size > 0 && (
+            canBroadcast ? (
+              <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={handleStartBroadcast}>
+                <MessageCircle className="mr-1.5 h-4 w-4" />
+                Broadcast WhatsApp ({selectedGuestIds.size})
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-muted-foreground"
+                onClick={() => {
+                  setUpgradeFeatureTitle('Broadcast WhatsApp Otomatis');
+                  setUpgradeFeatureDescription(
+                    'Kirimkan link undangan personal secara berurutan ke daftar tamu melalui WhatsApp tanpa harus salin-tempel manual satu per satu.'
+                  );
+                  setShowUpgradeModal(true);
+                }}
+              >
+                <Lock className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
+                Broadcast WA ({selectedGuestIds.size})
+              </Button>
+            )
           )}
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -754,6 +793,15 @@ export default function GuestsPage() {
               membuka jendela WhatsApp berisi pesan siap kirim &mdash; Anda tinggal menekan tombol Kirim di WhatsApp.
             </p>
 
+            {broadcastSent.size < broadcastQueue.length && (
+              <div className="mb-3 rounded-md border bg-muted/50 p-2.5 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Preview Pesan ({broadcastQueue[broadcastIndex].name}):</span>
+                <p className="mt-1 line-clamp-3 whitespace-pre-line italic">
+                  Kepada Yth. {broadcastQueue[broadcastIndex].name}, kami mengundang Anda ke pernikahan {invitation?.groomName || 'Mempelai Pria'} &amp; {invitation?.brideName || 'Mempelai Wanita'}...
+                </p>
+              </div>
+            )}
+
             {broadcastSent.size < broadcastQueue.length ? (
               <Button className="w-full bg-green-600 hover:bg-green-700" onClick={handleSendBroadcastItem}>
                 <MessageCircle className="mr-2 h-4 w-4" />
@@ -767,6 +815,18 @@ export default function GuestsPage() {
           </div>
         </div>
       )}
+
+      {/* Upgrade Feature Modal */}
+      <ConfirmDialog
+        open={showUpgradeModal}
+        onOpenChange={setShowUpgradeModal}
+        title={upgradeFeatureTitle}
+        description={`${upgradeFeatureDescription} Fitur ini tersedia pada paket Premium ke atas. Upgrade sekarang untuk mengaktifkannya?`}
+        confirmLabel="Lihat Paket Upgrade"
+        cancelLabel="Nanti Saja"
+        variant="default"
+        onConfirm={() => router.push('/dashboard/upgrade')}
+      />
     </div>
   );
 }

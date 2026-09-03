@@ -87,6 +87,7 @@ export function ElegantTemplate({
   invitation,
   guestName,
   personalLink,
+  existingRsvp,
   isPreview,
 }: TemplateProps) {
   const settings = parseSettings(invitation.settings);
@@ -210,6 +211,7 @@ export function ElegantTemplate({
               theme={theme}
               guestName={guestName}
               personalLink={personalLink}
+              existingRsvp={existingRsvp}
             />
             <OrnamentalDivider color={theme.colors.secondary} />
           </>

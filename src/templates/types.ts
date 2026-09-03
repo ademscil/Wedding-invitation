@@ -16,10 +16,17 @@ export interface TemplateTheme {
   };
 }
 
+export interface ExistingRsvp {
+  status: string;
+  guestCount?: number | null;
+  dietaryNotes?: string | null;
+}
+
 export interface TemplateProps {
   invitation: Invitation & { template: Template | null; wishes: Wish[] };
   guestName?: string;
   /** Personal link code of the guest viewing, so RSVP updates their record. */
   personalLink?: string;
+  existingRsvp?: ExistingRsvp;
   isPreview?: boolean;
 }

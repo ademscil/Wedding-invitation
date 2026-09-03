@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Calendar } from 'lucide-react';
 import type { Invitation } from '@prisma/client';
 import type { TemplateTheme } from '@/templates/types';
-import { parseSettings, isSectionVisible } from '@/lib/invitation-data';
+import { parseSettings, isSectionVisible, buildCalendarUrl, coupleNames } from '@/lib/invitation-data';
 
 interface CountdownSectionProps {
   invitation: Invitation;
@@ -86,6 +87,20 @@ export function CountdownSection({ invitation, theme }: CountdownSectionProps) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [isPast, setIsPast] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const calendarUrl = invitation.weddingDate
+    ? buildCalendarUrl(
+        {
+          id: 'wedding-main',
+          name: 'Pernikahan ' + coupleNames(invitation),
+          date: new Date(invitation.weddingDate).toISOString().split('T')[0],
+          startTime: '09:00',
+          venue: '',
+          address: '',
+        },
+        coupleNames(invitation)
+      )
+    : null;
 
   useEffect(() => {
     setMounted(true);
@@ -192,6 +207,25 @@ export function CountdownSection({ invitation, theme }: CountdownSectionProps) {
             {['Hari', 'Jam', 'Menit', 'Detik'].map((label) => (
               <CountdownUnit key={label} value={0} label={label} theme={theme} />
             ))}
+          </div>
+        )}
+        {calendarUrl && (
+          <div className="mt-8 flex justify-center">
+            <a
+              href={calendarUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-xs font-semibold uppercase tracking-wider transition-all hover:opacity-90 active:scale-95"
+              style={{
+                borderColor: theme.colors.primary + '50',
+                backgroundColor: theme.colors.primary + '10',
+                color: theme.colors.primary,
+                fontFamily: theme.fonts.body,
+              }}
+            >
+              <Calendar size={14} />
+              Simpan ke Google Calendar
+            </a>
           </div>
         )}
       </motion.div>
