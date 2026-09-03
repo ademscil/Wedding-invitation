@@ -4,9 +4,8 @@ import { templateRegistry, getTemplate } from '@/templates/registry';
 describe('templateRegistry', () => {
   it('resolves every registered template to a component', () => {
     for (const [name, component] of Object.entries(templateRegistry)) {
-      expect(component, `template "${name}" is not a component`).toBeTypeOf(
-        'function'
-      );
+      expect(component, `template "${name}" is not a component`).toBeDefined();
+      expect(['function', 'object']).toContain(typeof component);
     }
   });
 

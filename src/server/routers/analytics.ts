@@ -37,10 +37,16 @@ export const analyticsRouter = router({
 
       if (!invitation) return { success: false };
 
+      const secret = process.env.NEXTAUTH_SECRET || 'wedinvite-salt';
+      const anonymizedIp = ctx.ip && ctx.ip !== 'unknown'
+        ? (await import('crypto')).createHash('sha256').update(`${ctx.ip}:${secret}`).digest('hex').slice(0, 16)
+        : null;
+
       await ctx.prisma.analyticsEvent.create({
         data: {
           invitationId: invitation.id,
           eventType: input.eventType,
+          visitorIp: anonymizedIp,
           metadata: input.metadata,
         },
       });

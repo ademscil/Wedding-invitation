@@ -16,7 +16,8 @@ async function resolvePromo(
   prisma: import('@prisma/client').PrismaClient,
   rawCode: string | undefined,
   plan: string,
-  amount: number
+  amount: number,
+  userId?: string
 ) {
   if (!rawCode || rawCode.trim() === '') return null;
 
@@ -26,6 +27,24 @@ async function resolvePromo(
 
   if (!evaluation.valid) {
     throw new TRPCError({ code: 'BAD_REQUEST', message: evaluation.message });
+  }
+
+  if (userId) {
+    const alreadyUsed = await prisma.payment.findFirst({
+      where: {
+        userId,
+        promoCode: code,
+        status: 'PAID',
+      },
+      select: { id: true },
+    });
+
+    if (alreadyUsed) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Anda sudah pernah menggunakan kode promo ini.',
+      });
+    }
   }
 
   return evaluation;
@@ -51,7 +70,8 @@ export const paymentRouter = router({
         ctx.prisma,
         input.code,
         input.plan,
-        amount
+        amount,
+        ctx.session.user.id
       );
 
       return {
@@ -98,7 +118,8 @@ export const paymentRouter = router({
         ctx.prisma,
         input.promoCode,
         input.plan,
-        listPrice
+        listPrice,
+        ctx.session.user.id
       );
 
       const amount = promo ? promo.finalAmount : listPrice;

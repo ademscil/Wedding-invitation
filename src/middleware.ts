@@ -5,11 +5,23 @@ import { withAuth, type NextRequestWithAuth } from 'next-auth/middleware';
 
 const PROTECTED_PREFIXES = ['/dashboard', '/admin'];
 
-const requireAuth = withAuth({
-  callbacks: {
-    authorized: ({ token }) => token != null,
+const requireAuth = withAuth(
+  function middleware(req: NextRequestWithAuth) {
+    const pathname = req.nextUrl.pathname;
+    const role = req.nextauth.token?.role;
+
+    if ((pathname === '/admin' || pathname.startsWith('/admin/')) && role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+
+    return NextResponse.next();
   },
-});
+  {
+    callbacks: {
+      authorized: ({ token }) => token != null,
+    },
+  }
+);
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(

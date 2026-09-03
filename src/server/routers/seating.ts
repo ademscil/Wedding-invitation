@@ -278,14 +278,21 @@ export const seatingRouter = router({
         seatsUsedByTable
       );
 
-      await ctx.prisma.$transaction(
-        assignments.map(({ guestId, tableId }) =>
-          ctx.prisma.guest.update({
-            where: { id: guestId },
-            data: { tableId },
-          })
-        )
-      );
+      const tableToGuests: Record<string, string[]> = {};
+      for (const { guestId, tableId } of assignments) {
+        (tableToGuests[tableId] ??= []).push(guestId);
+      }
+
+      if (Object.keys(tableToGuests).length > 0) {
+        await ctx.prisma.$transaction(
+          Object.entries(tableToGuests).map(([tableId, guestIds]) =>
+            ctx.prisma.guest.updateMany({
+              where: { id: { in: guestIds } },
+              data: { tableId },
+            })
+          )
+        );
+      }
 
       return {
         seated: assignments.length,
