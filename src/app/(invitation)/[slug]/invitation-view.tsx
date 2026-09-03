@@ -1,3 +1,5 @@
+import React from 'react';
+import crypto from 'crypto';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
@@ -8,20 +10,30 @@ import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/constants';
 import { parseSettings } from '@/lib/invitation-data';
 import { coupleNames } from '@/lib/invitation-data';
 
-/**
- * Shared loader and renderer for the two public entry points:
- * `/[slug]` and the personalised `/[slug]/to/[guestSlug]`.
- * Keeping one implementation means the watermark, expiry and analytics rules
- * cannot drift between them.
- */
 export type InvitationLookup = { slug: string };
 
-export async function getInvitationBy(lookup: InvitationLookup) {
+/** Salted hash for visitor IP to comply with data privacy regulations (UU PDP / GDPR). */
+export function anonymizeIp(ip?: string | null): string | null {
+  if (!ip || ip === 'unknown') return null;
+  const secret = process.env.NEXTAUTH_SECRET || 'wedinvite-salt';
+  return crypto.createHash('sha256').update(`${ip}:${secret}`).digest('hex').slice(0, 16);
+}
+
+// React.cache is provided by React in RSC environments. In test runners (Vitest/jsdom), fall back cleanly.
+const memoize =
+  typeof React.cache === 'function'
+    ? React.cache
+    : <T extends (arg: string) => Promise<unknown>>(fn: T): T => fn;
+
+/**
+ * Request-memoized loader by primitive slug so generateMetadata and InvitationView
+ * never fire duplicate queries to PostgreSQL for the same page view.
+ */
+const getInvitationBySlug = memoize(async (slug: string) => {
   return prisma.invitation.findUnique({
-    where: { slug: lookup.slug },
+    where: { slug },
     include: {
       template: true,
-      // The owner's plan decides whether the watermark is rendered.
       user: { select: { subscriptionTier: true } },
       wishes: {
         where: { isApproved: true },
@@ -30,6 +42,10 @@ export async function getInvitationBy(lookup: InvitationLookup) {
       },
     },
   });
+});
+
+export async function getInvitationBy(lookup: InvitationLookup) {
+  return getInvitationBySlug(lookup.slug);
 }
 
 /** Kept for callers that only ever resolve by slug. */
@@ -142,18 +158,20 @@ export async function InvitationView({ lookup, personalLink }: InvitationViewPro
 
   const guest = personalLink ? await resolveGuest(invitation.id, personalLink) : null;
 
-  // Record the visit with the request metadata the analytics dashboard reports on.
+  // Record the visit asynchronously without blocking page render TTFB
   const requestHeaders = headers();
-  await prisma.analyticsEvent
+  const rawIp =
+    requestHeaders.get('x-forwarded-for')?.split(',')[0].trim() ??
+    requestHeaders.get('x-real-ip');
+
+  prisma.analyticsEvent
     .create({
       data: {
         invitationId: invitation.id,
         eventType: 'PAGE_VIEW',
         userAgent: requestHeaders.get('user-agent'),
         referrer: requestHeaders.get('referer'),
-        visitorIp:
-          requestHeaders.get('x-forwarded-for')?.split(',')[0].trim() ??
-          requestHeaders.get('x-real-ip'),
+        visitorIp: anonymizeIp(rawIp),
         metadata: guest ? JSON.stringify({ guestId: guest.id }) : null,
       },
     })

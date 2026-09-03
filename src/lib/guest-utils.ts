@@ -1,5 +1,4 @@
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 import QRCode from 'qrcode';
 
 export interface GuestRow {
@@ -74,21 +73,37 @@ export function parseGuestFile(file: File): Promise<GuestRow[]> {
       });
     } else if (ext === 'xlsx' || ext === 'xls') {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          /*
-           * `raw: false` returns each cell as the text the customer sees.
-           * Reading raw values turns a phone number Excel stored as a number
-           * into 8123456789 — the leading zero every Indonesian number starts
-           * with, gone, and the WhatsApp link with it.
-           */
-          const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-            raw: false,
-            defval: '',
+          const buffer = e.target?.result as ArrayBuffer;
+          const ExcelJS = await import('exceljs');
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(buffer);
+          const worksheet = workbook.worksheets[0];
+          if (!worksheet) {
+            resolve([]);
+            return;
+          }
+
+          const headers: Record<number, string> = {};
+          const headerRow = worksheet.getRow(1);
+          headerRow.eachCell((cell, colNumber) => {
+            headers[colNumber] = String(cell.text ?? cell.value ?? '').trim();
           });
+
+          const json: Record<string, unknown>[] = [];
+          worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return;
+            const rowData: Record<string, unknown> = {};
+            row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+              const header = headers[colNumber];
+              if (header) {
+                rowData[header] = cell.text ?? cell.value ?? '';
+              }
+            });
+            json.push(rowData);
+          });
+
           resolve(toGuestRows(json));
         } catch (err) {
           reject(err);
@@ -134,7 +149,7 @@ export function exportGuestsToCsv(
 }
 
 // Export guests to Excel file and trigger download
-export function exportGuestsToExcel(
+export async function exportGuestsToExcel(
   guests: Array<{
     name: string;
     phone: string | null;
@@ -148,21 +163,41 @@ export function exportGuestsToExcel(
   }>,
   filename = 'tamu.xlsx'
 ) {
-  const rows = guests.map((g) => ({
-    Nama: g.name,
-    'No HP': g.phone || '',
-    Email: g.email || '',
-    Grup: g.groupName || '',
-    'Status RSVP': g.rsvpStatus,
-    'Jumlah Tamu': g.rsvpGuestCount || 1,
-    'Link Personal': g.personalLink,
-    'Buka Link': g.linkOpenedAt ? 'Ya' : 'Tidak',
-    'Check-in': g.checkedIn ? 'Ya' : 'Tidak',
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Tamu');
-  XLSX.writeFile(wb, filename);
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Tamu');
+
+  worksheet.columns = [
+    { header: 'Nama', key: 'name', width: 25 },
+    { header: 'No HP', key: 'phone', width: 18 },
+    { header: 'Email', key: 'email', width: 25 },
+    { header: 'Grup', key: 'groupName', width: 15 },
+    { header: 'Status RSVP', key: 'rsvpStatus', width: 15 },
+    { header: 'Jumlah Tamu', key: 'rsvpGuestCount', width: 12 },
+    { header: 'Link Personal', key: 'personalLink', width: 20 },
+    { header: 'Buka Link', key: 'linkOpened', width: 12 },
+    { header: 'Check-in', key: 'checkedIn', width: 12 },
+  ];
+
+  for (const g of guests) {
+    worksheet.addRow({
+      name: g.name,
+      phone: g.phone || '',
+      email: g.email || '',
+      groupName: g.groupName || '',
+      rsvpStatus: g.rsvpStatus,
+      rsvpGuestCount: g.rsvpGuestCount || 1,
+      personalLink: g.personalLink,
+      linkOpened: g.linkOpenedAt ? 'Ya' : 'Tidak',
+      checkedIn: g.checkedIn ? 'Ya' : 'Tidak',
+    });
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  downloadFile(blob, filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 /**
@@ -233,8 +268,8 @@ export async function generateGuestQrCode(
   });
 }
 
-function downloadFile(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
+function downloadFile(content: BlobPart, filename: string, mimeType: string) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

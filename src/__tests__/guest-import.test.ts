@@ -83,11 +83,17 @@ describe('parseGuestFile — CSV', () => {
 describe('parseGuestFile — Excel', () => {
   /** Builds a real .xlsx in memory so the sheet reader is genuinely exercised. */
   async function xlsx(rows: Record<string, unknown>[]): Promise<File> {
-    const XLSX = await import('xlsx');
-    const sheet = XLSX.utils.json_to_sheet(rows);
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, 'Tamu');
-    const buffer = XLSX.write(book, { type: 'array', bookType: 'xlsx' });
+    const ExcelJS = await import('exceljs');
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('Tamu');
+    if (rows.length > 0) {
+      const headers = Object.keys(rows[0]!);
+      sheet.addRow(headers);
+      for (const row of rows) {
+        sheet.addRow(headers.map((h) => row[h] ?? ''));
+      }
+    }
+    const buffer = await book.xlsx.writeBuffer();
     return new File([buffer], 'tamu.xlsx', {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
