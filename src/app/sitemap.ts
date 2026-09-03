@@ -5,7 +5,7 @@ import { parseSettings } from '@/lib/invitation-data';
 export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://wedinvite.id';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://saas-wedding-two.vercel.app';
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },

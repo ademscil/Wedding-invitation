@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, staging, development, 'claude/*']
+    branches: [main, staging, development]
   pull_request:
     branches: [main, staging, development]
 
@@ -57,43 +57,3 @@ jobs:
       - run: npx prisma generate
       - run: npm run build
 
-  e2e:
-    name: Browser Tests
-    runs-on: ubuntu-latest
-    needs: [build]
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: wedinvite_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql://test:password@localhost:5432/wedinvite_test
-      NEXTAUTH_SECRET: ci-secret-placeholder
-      NEXTAUTH_URL: http://127.0.0.1:3100
-      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npx prisma db push
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7

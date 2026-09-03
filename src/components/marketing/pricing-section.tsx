@@ -57,6 +57,14 @@ export function PricingSection() {
           {tierOrder.map((key, i) => {
             const tier = SUBSCRIPTION_TIERS[key];
             const isPopular = key === 'PREMIUM';
+            const isStarter = key === 'STARTER';
+
+            const tierDescriptions: Record<TierKey, string> = {
+              FREE: 'Coba buat dan bagikan gratis tanpa kartu kredit',
+              STARTER: 'Paket 1 acara lengkap dengan foto galeri & musik',
+              PREMIUM: 'Bebas watermark, 1000 tamu, QR Check-in & WhatsApp broadcast',
+              BUSINESS: 'Solusi tanpa batas untuk Wedding Organizer & Vendor',
+            };
 
             return (
               <motion.div
@@ -64,8 +72,10 @@ export function PricingSection() {
                 className={cn(
                   'relative flex flex-col rounded-xl border p-6',
                   isPopular
-                    ? 'border-2 border-accent shadow-lg'
-                    : 'border-primary-100'
+                    ? 'border-2 border-accent shadow-lg bg-accent/5'
+                    : isStarter
+                      ? 'border-2 border-primary-400 shadow-md'
+                      : 'border-primary-100 bg-white'
                 )}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -73,14 +83,22 @@ export function PricingSection() {
                 transition={{ duration: 0.4, delay: i * 0.08 }}
               >
                 {isPopular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-4 py-0.5 text-xs font-semibold text-white">
-                    Populer
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-4 py-0.5 text-xs font-semibold text-white shadow-sm">
+                    Paling Lengkap
+                  </span>
+                )}
+                {isStarter && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary-700 px-4 py-0.5 text-xs font-semibold text-white shadow-sm">
+                    Best Value
                   </span>
                 )}
 
                 <h3 className="font-display text-xl font-semibold text-primary-800">
                   {tier.name}
                 </h3>
+                <p className="mt-1 text-xs text-primary-500 min-h-[32px]">
+                  {tierDescriptions[key]}
+                </p>
 
                 <div className="mt-4">
                   <span className="text-3xl font-bold text-primary-800">

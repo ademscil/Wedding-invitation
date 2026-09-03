@@ -7,8 +7,8 @@ import { siteConfig } from '@/config/site';
  * product asking for money.
  */
 const productLinks = [
-  { label: 'Template', href: '#template' },
-  { label: 'Fitur', href: '#fitur' },
+  { label: 'Template', href: '/#template' },
+  { label: 'Fitur', href: '/#fitur' },
   { label: 'Harga', href: '/pricing' },
 ];
 
@@ -22,7 +22,7 @@ const legalLinks = [
  * "WhatsApp" that opens a chat with nobody is worse than not listing it.
  */
 const helpLinks = [
-  { label: 'FAQ', href: '#faq' },
+  { label: 'FAQ', href: '/#faq' },
   ...(siteConfig.supportEmail
     ? [
         {

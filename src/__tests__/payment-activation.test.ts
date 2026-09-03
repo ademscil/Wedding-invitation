@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
 import dotenv from 'dotenv';
+import { SUBSCRIPTION_TIERS } from '@/lib/constants';
 
 dotenv.config({ path: path.join(process.cwd(), '.env.local') });
 
@@ -74,13 +75,18 @@ describe('planFromPayment', () => {
   it('uses the recorded plan, not one inferred from a discounted amount', async () => {
     const { planFromPayment } = await import('@/lib/payment');
 
-    // 99_500 matches no tier price: inference alone returns null, and the
+    // 49_500 matches no tier price: inference alone returns null, and the
     // activation would be refused as an unrecognised amount.
-    expect(planFromPayment({ plan: 'PREMIUM', amount: 99_500 })).toBe('PREMIUM');
-    expect(planFromPayment({ plan: null, amount: 99_500 })).toBeNull();
+    expect(planFromPayment({ plan: 'PREMIUM', amount: 49_500 })).toBe('PREMIUM');
+    expect(planFromPayment({ plan: null, amount: 49_500 })).toBeNull();
 
     // Rows written before the column existed still resolve by amount.
-    expect(planFromPayment({ plan: null, amount: 199_000 })).toBe('PREMIUM');
+    expect(
+      planFromPayment({
+        plan: null,
+        amount: SUBSCRIPTION_TIERS.PREMIUM.price,
+      })
+    ).toBe('PREMIUM');
 
     // A value that is not a paid plan cannot invent a tier.
     expect(planFromPayment({ plan: 'FREE', amount: 1 })).toBeNull();

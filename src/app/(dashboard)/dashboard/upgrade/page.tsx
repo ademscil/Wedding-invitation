@@ -21,35 +21,32 @@ const PLAN_FEATURES: Record<string, string[]> = {
     'Template dasar',
   ],
   STARTER: [
-    '3 undangan aktif',
-    '200 tamu',
-    '15 foto galeri',
-    '2 acara',
-    'Love story',
-    'Statistik dasar',
-    '1 rekening bank',
+    '1 undangan aktif (1 acara lengkap)',
+    '300 tamu undangan',
+    '15 foto galeri prewedding',
+    '2 acara (Akad & Resepsi)',
+    'Musik kustom & Love story',
+    'Amplop digital & statistik',
+    'Masa aktif 6 bulan',
   ],
   PREMIUM: [
-    '10 undangan aktif',
-    '500 tamu',
-    '30 foto galeri',
-    '3 acara',
-    'Love story',
-    'Musik kustom',
-    'Statistik lengkap',
-    'Export tamu (CSV)',
+    '5 undangan aktif',
+    '1.000 tamu undangan',
+    '30 foto galeri HD',
+    'Bebas watermark',
+    'QR Code check-in tamu HP',
     'Broadcast WhatsApp',
-    '3 rekening bank',
+    'Export tamu (CSV)',
+    'Masa aktif 12 bulan',
   ],
   BUSINESS: [
     'Undangan tidak terbatas',
     'Tamu tidak terbatas',
     'Foto tidak terbatas',
-    'Acara tidak terbatas',
     'Semua fitur Premium',
-    'QR Check-in',
-    'Rekening tidak terbatas',
-    'Prioritas support',
+    'Seating planner lengkap',
+    'Prioritas support 24/7',
+    'Masa aktif 2 tahun',
   ],
 };
 
@@ -243,7 +240,7 @@ export default function UpgradePage() {
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Pembayaran aman melalui Midtrans. Hubungi support@wedinvite.id untuk bantuan.
+        Pembayaran aman dan terverifikasi otomatis melalui Midtrans.
       </p>
     </div>
   );

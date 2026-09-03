@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
-  { label: 'Template', href: '#template' },
-  { label: 'Fitur', href: '#fitur' },
-  { label: 'Harga', href: '#harga' },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'Template', href: '/#template' },
+  { label: 'Fitur', href: '/#fitur' },
+  { label: 'Harga', href: '/#harga' },
+  { label: 'FAQ', href: '/#faq' },
 ];
 
 export function Navbar() {
